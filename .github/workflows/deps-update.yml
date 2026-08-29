@@ -1,0 +1,93 @@
+name: Deps update
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Monday 06:00 UTC (07:00/08:00 PL)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write # dispatch CI onto the branch this job pushes
+
+concurrency:
+  group: deps-update
+  cancel-in-progress: false
+
+env:
+  # Future-proof: opt into Node 24 for JS actions before GH forces it (2026-06-02 default, 2026-09-16 hard cutoff)
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  update:
+    name: Bump deps + open PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: pnpm
+
+      - name: Install (sanity check current state)
+        run: pnpm install --frozen-lockfile
+
+      - name: Update deps
+        run: pnpm run deps:update
+
+      - name: Refresh lockfile
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint:ci
+
+      - name: Type check
+        run: pnpm run types
+
+      - name: Test
+        run: pnpm run test
+
+      - name: Knip
+        run: pnpm run knip
+
+      - name: Open PR
+        id: pr
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: chore/deps-update
+          delete-branch: true
+          commit-message: "chore(deps): weekly minor + patch bumps"
+          title: "chore(deps): weekly minor + patch bumps"
+          body: |
+            Automated weekly run of `pnpm deps:update` (`taze -r -w`) +
+            `pnpm install`.
+
+            Validated by this job before opening the PR:
+            - `pnpm lint:ci`
+            - `pnpm types`
+            - `pnpm test`
+            - `pnpm knip`
+
+            The CI workflow is dispatched onto this branch by the step after
+            PR creation, so the same checks a human PR runs appear here too.
+
+            Close this PR if anything looks off and run the bumps manually.
+          labels: dependencies, automated
+
+      # The `pull_request` run for a PR GITHUB_TOKEN created is parked in
+      # `action_required` until a human approves it. workflow_dispatch is an
+      # explicit exception to that gate, so request the run against the branch
+      # the PR was opened from and get the checks without the approval click.
+      - name: Run CI on the pull request branch
+        if: steps.pr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run ci.yml --ref chore/deps-update
