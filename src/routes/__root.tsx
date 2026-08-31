@@ -1,5 +1,7 @@
 /// <reference types="vite/client" />
 
+import ibmPlexSansLatin from "@fontsource-variable/ibm-plex-sans/files/ibm-plex-sans-latin-wght-normal.woff2?url";
+import newsreaderLatin from "@fontsource-variable/newsreader/files/newsreader-latin-wght-normal.woff2?url";
 import type { QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
@@ -24,12 +26,31 @@ export const Route = createRootRouteWithContext<{
 				content: "width=device-width, initial-scale=1",
 			},
 			...seo({
-				title: "TanStack Start | Type-Safe, Client-First, Full-Stack React Framework",
-				description: `TanStack Start is a type-safe, client-first, full-stack React framework. `,
+				title: "petition-on-cf — szablon strony petycji na Cloudflare Workers",
+				description:
+					"Otwarty szablon strony petycji: formularz podpisu ze zgodami RODO, licznik podpisów na żywo, mapa poparcia i treści po polsku oraz po angielsku. Jedno wdrożenie to jedna petycja, w całości na Twoim koncie Cloudflare.",
 			}),
 		],
 		links: [
 			{ rel: "stylesheet", href: appCss },
+			// The hero headline is the LCP element and it is set in the display
+			// serif, so both latin cuts are fetched alongside the stylesheet rather
+			// than after it. The latin-ext cuts carrying the Polish diacritics are
+			// left to the unicode-range rules in styles.css.
+			{
+				rel: "preload",
+				as: "font",
+				type: "font/woff2",
+				href: newsreaderLatin,
+				crossOrigin: "anonymous",
+			},
+			{
+				rel: "preload",
+				as: "font",
+				type: "font/woff2",
+				href: ibmPlexSansLatin,
+				crossOrigin: "anonymous",
+			},
 			{
 				rel: "apple-touch-icon",
 				sizes: "180x180",
@@ -78,8 +99,10 @@ function RootComponent() {
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+	// Polish is the default language; Phase 3 adds the /en prefix and makes this
+	// per-route rather than fixed.
 	return (
-		<html lang="en">
+		<html lang="pl">
 			<head>
 				<HeadContent />
 			</head>

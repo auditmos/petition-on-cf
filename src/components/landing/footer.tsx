@@ -1,96 +1,62 @@
-import { ExternalLink, Github } from "lucide-react";
+import { ExternalLink } from "lucide-react";
+import { PROJECT_LINKS } from "@/components/landing/project-links";
 
-const navigation = {
-	main: [
-		{ name: "TanStack Start", href: "https://tanstack.com/start" },
-		{ name: "TanStack Router", href: "https://tanstack.com/router" },
-		{ name: "TanStack Query", href: "https://tanstack.com/query" },
-		{ name: "React", href: "https://react.dev" },
-	],
-	tools: [
-		{ name: "Vite", href: "https://vitejs.dev" },
-		{ name: "TypeScript", href: "https://typescriptlang.org" },
-		{ name: "Tailwind CSS", href: "https://tailwindcss.com" },
-		{ name: "Shadcn/UI", href: "https://ui.shadcn.com" },
-	],
-	social: [
-		{
-			name: "GitHub",
-			href: "https://github.com/tanstack",
-			icon: Github,
-		},
-	],
-};
+const documents = [
+	{ name: "Repozytorium na GitHubie", href: PROJECT_LINKS.repository },
+	{ name: "Założenia projektu (PRD)", href: PROJECT_LINKS.prd },
+	{ name: "Plan wdrożenia w fazach", href: PROJECT_LINKS.plan },
+	{ name: "Zadania i postęp prac", href: PROJECT_LINKS.issues },
+];
 
 export function Footer() {
 	return (
-		<footer className="border-t bg-background">
-			<div className="mx-auto max-w-7xl px-6 py-12 md:flex md:items-center md:justify-between lg:px-8">
-				<div className="flex flex-col md:flex-row md:items-center md:space-x-8 space-y-6 md:space-y-0">
-					<div>
-						<h3 className="text-sm font-semibold text-foreground">TanStack Ecosystem</h3>
-						<ul className="mt-2 space-y-1">
-							{navigation.main.map((item) => (
-								<li key={item.name}>
-									<a
-										href={item.href}
-										target="_blank"
-										rel="noopener noreferrer"
-										className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center group"
-									>
-										{item.name}
-										<ExternalLink className="ml-1 h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-									</a>
-								</li>
-							))}
-						</ul>
-					</div>
-
-					<div>
-						<h3 className="text-sm font-semibold text-foreground">Development Tools</h3>
-						<ul className="mt-2 space-y-1">
-							{navigation.tools.map((item) => (
-								<li key={item.name}>
-									<a
-										href={item.href}
-										target="_blank"
-										rel="noopener noreferrer"
-										className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center group"
-									>
-										{item.name}
-										<ExternalLink className="ml-1 h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-									</a>
-								</li>
-							))}
-						</ul>
-					</div>
-				</div>
-
-				<div className="mt-8 md:mt-0 flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-6">
-					<div className="flex space-x-6">
-						{navigation.social.map((item) => {
-							const IconComponent = item.icon;
-							return (
-								<a
-									key={item.name}
-									href={item.href}
-									target="_blank"
-									rel="noopener noreferrer"
-									className="text-muted-foreground hover:text-foreground transition-colors"
-								>
-									<span className="sr-only">{item.name}</span>
-									<IconComponent className="h-5 w-5" />
-								</a>
-							);
-						})}
-					</div>
-
-					<div className="text-center md:text-right">
-						<p className="text-xs text-muted-foreground">Built with TanStack Start</p>
-						<p className="text-xs text-muted-foreground mt-1">
-							&copy; {new Date().getFullYear()} TanStack. MIT Licensed.
+		<footer className="border-t border-divider bg-ground">
+			<div className="mx-auto max-w-6xl px-6 py-14 lg:px-8">
+				<div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
+					<div className="max-w-md">
+						<p className="text-base font-semibold text-ink">petition-on-cf</p>
+						<p className="mt-3 text-sm leading-relaxed text-quiet">
+							Szablon strony petycji na Cloudflare Workers. Rozwijany publicznie jako projekt
+							otwarty — dokumenty poniżej opisują, co powstaje i w jakiej kolejności.
 						</p>
 					</div>
+
+					<nav aria-label="Dokumenty projektu">
+						<h2 className="text-xs font-medium uppercase tracking-wider text-quiet">Dokumenty</h2>
+						<ul className="mt-4 space-y-2">
+							{documents.map((document) => (
+								<li key={document.name}>
+									<a
+										href={document.href}
+										target="_blank"
+										rel="noopener noreferrer"
+										className="group inline-flex items-center text-sm text-quiet transition-colors hover:text-brand-dark"
+									>
+										{document.name}
+										<ExternalLink className="ml-1.5 h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
+									</a>
+								</li>
+							))}
+						</ul>
+					</nav>
+				</div>
+
+				<div className="mt-12 flex flex-col gap-2 border-t border-divider pt-6 text-xs text-quiet sm:flex-row sm:items-center sm:justify-between">
+					<p>
+						Odpowiedzialność za zgodność treści prawnych konkretnej kampanii spoczywa na jej
+						organizatorze.
+					</p>
+					<p>
+						Licencja{" "}
+						<a
+							href={PROJECT_LINKS.license}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="underline underline-offset-2 transition-colors hover:text-brand-dark"
+						>
+							MIT
+						</a>
+					</p>
 				</div>
 			</div>
 		</footer>

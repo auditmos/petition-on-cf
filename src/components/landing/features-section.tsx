@@ -1,104 +1,107 @@
-import { Code, Database, Layers, Palette, Route, Server, Shield, Zap } from "lucide-react";
+import {
+	FileText,
+	Globe,
+	ListChecks,
+	Map as MapIcon,
+	PenLine,
+	Radio,
+	ShieldCheck,
+	Table2,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 const features = [
 	{
-		icon: Route,
-		title: "TanStack Router",
+		icon: PenLine,
+		title: "Formularz podpisu",
+		phase: "Faza 2 i 7",
 		description:
-			"Type-safe, file-based routing with powerful features like nested layouts, loaders, and search params validation.",
-		badge: "Type-Safe",
+			"Imię, nazwisko, adres e-mail i miejscowość, wybór między osobą prywatną a firmą oraz trzy pola zgód. Adres e-mail jest kluczem, po którym rozpoznawany jest ponowny podpis — kto podpisał drugi raz, dostaje życzliwy komunikat zamiast błędu.",
 	},
 	{
-		icon: Database,
-		title: "TanStack Query",
+		icon: Radio,
+		title: "Licznik podpisów na żywo",
+		phase: "Faza 5",
 		description:
-			"Powerful data synchronization with server state management, caching, and background updates built-in.",
-		badge: "Server State",
+			"Durable Object trzyma bieżące liczby i rozsyła je przez WebSocket, łącząc powiadomienia do jednego na sekundę. Gdy połączenie nie dojdzie do skutku, strona po cichu przechodzi na cykliczne odpytywanie i nigdy nie wygląda na zepsutą.",
 	},
 	{
-		icon: Code,
-		title: "React 19",
+		icon: MapIcon,
+		title: "Mapa poparcia",
+		phase: "Faza 6",
 		description:
-			"Latest React with concurrent features, improved performance, and modern development patterns.",
-		badge: "Latest",
+			"Mapa Polski z szesnastoma województwami, cieniowana liczbą podpisów i odświeżana razem z licznikiem. Województwo bierze się z danych o zapytaniu, a nie z wpisanej ręcznie miejscowości — literówka nie psuje statystyki.",
 	},
 	{
-		icon: Zap,
-		title: "Vite",
+		icon: ShieldCheck,
+		title: "Ochrona przed botami",
+		phase: "Faza 4",
 		description:
-			"Lightning-fast build tool with hot module replacement and optimized production builds.",
-		badge: "Fast",
+			"Turnstile sprawdzany po stronie serwera, limit zgłoszeń z jednego adresu IP i odrzucanie powtórzonych adresów e-mail. Osoba podpisująca nie rozwiązuje żadnej łamigłówki, a liczba podpisów daje się obronić przed adresatem petycji.",
 	},
 	{
-		icon: Shield,
-		title: "TypeScript",
+		icon: ListChecks,
+		title: "Publiczna lista poparcia",
+		phase: "Faza 8",
 		description:
-			"Full TypeScript support with strict typing, IntelliSense, and compile-time error checking.",
-		badge: "Type-Safe",
+			"Podzielona na strony lista w formacie „Imię N., Miejscowość” albo nazwa firmy — wyłącznie dla osób, które zaznaczyły zgodę na publikację. Kto zgody nie zaznaczył, nie pojawia się na niej nigdy.",
 	},
 	{
-		icon: Palette,
-		title: "Tailwind CSS v4",
+		icon: FileText,
+		title: "Warstwa prawna",
+		phase: "Faza 7",
 		description:
-			"Modern utility-first CSS framework with CSS variables and a comprehensive design system.",
-		badge: "Styling",
+			"Klauzula informacyjna dostępna bez opuszczania formularza oraz klauzula RODO i polityka prywatności jako zwykłe podstrony. Nazwy organizatora i adresata wstawiane są w teksty automatycznie z pliku konfiguracyjnego.",
 	},
 	{
-		icon: Server,
-		title: "SSR Ready",
+		icon: Globe,
+		title: "Dwie wersje językowe",
+		phase: "Faza 3",
 		description:
-			"Server-side rendering support with seamless hydration and SEO optimization out of the box.",
-		badge: "Performance",
+			"Polska pod adresem głównym, angielska pod prefiksem /en, przełącznik zachowujący bieżącą stronę oraz znaczniki hreflang i Open Graph w obu językach. Cała treść mieszka w plikach sprawdzanych schematem, nie w kodzie komponentów.",
 	},
 	{
-		icon: Layers,
-		title: "Shadcn/UI",
+		icon: Table2,
+		title: "Dostęp do danych",
+		phase: "Faza 10",
 		description:
-			"Beautiful, accessible component library with customizable themes and modern design patterns.",
-		badge: "Components",
+			"Zamiast panelu administracyjnego — gotowe zapytania wiersza poleceń: pełny eksport podpisów do pliku CSV i lista adresów osób, które zgodziły się na kontakt. Brak panelu oznacza brak logowania i brak powierzchni do zaatakowania.",
 	},
 ];
 
 export function FeaturesSection() {
 	return (
-		<section id="features" className="py-24 sm:py-32">
-			<div className="mx-auto max-w-7xl px-6 lg:px-8">
-				<div className="mx-auto max-w-2xl text-center">
-					<h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-						Everything you need to build modern web apps
-					</h2>
-					<p className="mt-4 text-lg text-muted-foreground">
-						A carefully curated stack of the best tools and libraries for React development
-					</p>
-				</div>
+		<section id="funkcje" className="border-t border-divider bg-ground py-20 sm:py-28">
+			<div className="mx-auto max-w-6xl px-6 lg:px-8">
+				<p className="text-xs font-medium uppercase tracking-wider text-quiet">Zakres szablonu</p>
+				<h2 className="mt-3 max-w-2xl text-3xl sm:text-4xl">Co znajdzie się na gotowej stronie</h2>
+				<p className="mt-4 max-w-2xl text-base leading-relaxed text-quiet">
+					Każdy element powstaje jako osobna, działająca całość. Etykieta przy nazwie mówi, w której
+					fazie planu dany fragment jest budowany — nic z tej listy nie jest jeszcze ukończone.
+				</p>
 
-				<div className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-6 sm:mt-20 lg:mx-0 lg:max-w-none lg:grid-cols-2 xl:grid-cols-4">
+				<div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-2">
 					{features.map((feature) => {
-						const IconComponent = feature.icon;
+						const Icon = feature.icon;
 						return (
-							<Card
+							<article
 								key={feature.title}
-								className="group hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+								className="rounded-xl border border-divider bg-paper p-6"
 							>
-								<CardHeader>
-									<div className="flex items-center justify-between">
-										<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-											<IconComponent className="h-5 w-5 text-primary" />
-										</div>
-										<Badge variant="outline" className="text-xs">
-											{feature.badge}
-										</Badge>
+								<div className="flex items-start justify-between gap-4">
+									<div className="flex items-center gap-3">
+										<Icon aria-hidden="true" className="h-5 w-5 shrink-0 text-brand" />
+										<h3 className="text-lg text-ink">{feature.title}</h3>
 									</div>
-									<CardTitle className="text-lg">{feature.title}</CardTitle>
-								</CardHeader>
-								<CardContent>
-									<CardDescription className="text-sm leading-relaxed">
-										{feature.description}
-									</CardDescription>
-								</CardContent>
-							</Card>
+									<Badge
+										variant="outline"
+										className="shrink-0 border-brand-soft-border bg-brand-soft text-xs font-medium text-brand-dark"
+									>
+										{feature.phase}
+									</Badge>
+								</div>
+								<p className="mt-4 text-sm leading-relaxed text-quiet">{feature.description}</p>
+							</article>
 						);
 					})}
 				</div>

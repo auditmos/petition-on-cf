@@ -21,6 +21,7 @@ re-derives either from scratch.
 | [Database driver](./decisions/database-driver.md) | The fetch-based Neon driver, not Hyperdrive — prerequisite count dominates for a template |
 | [Smart Placement](./decisions/smart-placement.md) | Ships commented out; enable it deliberately and measure |
 | [Agent support](./decisions/agent-support.md) | One first-class tool plus `AGENTS.md`; no mirrored agent definitions |
+| [Visual design system](./decisions/visual-design-system.md) | Editorial-civic look with a blue accent; semantic tokens, self-hosted type |
 
 ## What belongs here
 

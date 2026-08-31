@@ -42,8 +42,6 @@ Durable decisions every slice must respect (full list in the plan header):
 - `src/routes/` — file-based routes (auto-generates `routeTree.gen.ts`)
 - `src/components/` — reusable React components
 - `src/components/ui/` — Shadcn primitives (do not edit manually)
-- `src/core/functions/` — TanStack server functions
-- `src/core/middleware/` — server function middleware
 - `src/hono/` — Hono API routes and factory
 - `src/server.ts` — custom CF Workers entry (routes `/api/*` → Hono, rest → TanStack)
 - `src/integrations/tanstack-query/` — query client setup and providers

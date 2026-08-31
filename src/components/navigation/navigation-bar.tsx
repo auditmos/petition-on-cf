@@ -1,195 +1,107 @@
 import { Link } from "@tanstack/react-router";
-import { ExternalLink, Github, Menu } from "lucide-react";
+import { Github, Menu } from "lucide-react";
 import * as React from "react";
+import { PROJECT_LINKS } from "@/components/landing/project-links";
 import { ThemeToggle } from "@/components/theme";
 import { Button } from "@/components/ui/button";
-import {
-	Sheet,
-	SheetContent,
-	SheetDescription,
-	SheetHeader,
-	SheetTitle,
-	SheetTrigger,
-} from "@/components/ui/sheet";
-import { cn } from "@/lib/utils";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 interface NavigationItem {
 	label: string;
-	href: string;
-	isExternal?: boolean;
-	scrollTo?: string;
+	sectionId: string;
 }
 
 const navigationItems: NavigationItem[] = [
-	{ label: "Features", href: "#features", scrollTo: "features" },
-	{
-		label: "Documentation",
-		href: "https://tanstack.com/start/latest/docs/framework/react/overview",
-		isExternal: true,
-	},
-	{
-		label: "GitHub",
-		href: "https://github.com/backpine/tanstack-start-on-cloudflare",
-		isExternal: true,
-	},
+	{ label: "Zakres szablonu", sectionId: "funkcje" },
+	{ label: "Uruchomienie", sectionId: "start" },
+	{ label: "Architektura", sectionId: "architektura" },
 ];
 
 export function NavigationBar() {
 	const [isOpen, setIsOpen] = React.useState(false);
-	const [isScrolled, setIsScrolled] = React.useState(false);
 
-	React.useEffect(() => {
-		const handleScroll = () => {
-			setIsScrolled(window.scrollY > 20);
-		};
-
-		window.addEventListener("scroll", handleScroll);
-		return () => window.removeEventListener("scroll", handleScroll);
-	}, []);
-
-	const handleSmoothScroll = (elementId: string) => {
-		const element = document.getElementById(elementId);
-		if (element) {
-			element.scrollIntoView({
-				behavior: "smooth",
-				block: "start",
-			});
-		}
-	};
-
-	const handleNavClick = (item: NavigationItem) => {
-		if (item.scrollTo) {
-			handleSmoothScroll(item.scrollTo);
-		}
+	const scrollToSection = (sectionId: string) => {
+		document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
 		setIsOpen(false);
 	};
 
 	return (
-		<nav
-			className={cn(
-				"fixed top-0 left-0 right-0 z-50 transition-all duration-500 ease-out",
-				isScrolled
-					? "bg-background/80 backdrop-blur-xl border-b border-border/50 shadow-lg shadow-primary/5"
-					: "bg-transparent",
-			)}
-		>
-			<div className="container mx-auto px-4 sm:px-6 lg:px-8">
-				<div className="flex items-center justify-between h-16 lg:h-20">
-					{/* Logo and Brand */}
-					<Link to="/" className="group flex items-center space-x-3 no-underline">
-						<div className="flex flex-col">
-							<span className="text-lg lg:text-xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent group-hover:from-primary group-hover:to-primary/80 transition-all duration-300">
-								TanStack Start
-							</span>
-							<span className="text-xs text-muted-foreground font-medium tracking-wider">
-								on CLOUDFLARE
-							</span>
-						</div>
-					</Link>
+		<nav className="sticky top-0 z-50 bg-brand-deep text-white">
+			<div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6 lg:h-20 lg:px-8">
+				<Link to="/" className="flex flex-col no-underline">
+					<span className="font-display text-lg font-semibold tracking-tight lg:text-xl">
+						petition-on-cf
+					</span>
+					<span className="text-[0.65rem] font-medium uppercase tracking-wider text-white/60">
+						Szablon petycji
+					</span>
+				</Link>
 
-					{/* Desktop Navigation */}
-					<div className="hidden lg:flex items-center space-x-1">
-						{navigationItems.map((item) => (
-							<div key={item.label} className="relative group">
-								{item.isExternal ? (
-									<a
-										href={item.href}
-										target="_blank"
-										rel="noopener noreferrer"
-										className="flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground transition-all duration-300 hover:bg-accent/50 group"
-									>
-										<span>{item.label}</span>
-										{item.label === "GitHub" ? (
-											<Github className="h-4 w-4" />
-										) : (
-											<ExternalLink className="h-4 w-4" />
-										)}
-									</a>
-								) : (
+				<div className="hidden items-center gap-1 lg:flex">
+					{navigationItems.map((item) => (
+						<button
+							key={item.label}
+							type="button"
+							onClick={() => scrollToSection(item.sectionId)}
+							className="rounded-md px-4 py-2 text-sm font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+						>
+							{item.label}
+						</button>
+					))}
+
+					<a
+						href={PROJECT_LINKS.repository}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="ml-2 inline-flex items-center gap-2 rounded-full border border-white/40 px-4 py-2 text-sm font-medium transition-colors hover:bg-white hover:text-brand-deep"
+					>
+						<Github className="h-4 w-4" />
+						GitHub
+					</a>
+
+					<div className="ml-2 border-l border-white/20 pl-2 text-white">
+						<ThemeToggle variant="ghost" align="end" />
+					</div>
+				</div>
+
+				<div className="flex items-center gap-2 text-white lg:hidden">
+					<ThemeToggle variant="ghost" align="end" />
+					<Sheet open={isOpen} onOpenChange={setIsOpen}>
+						<SheetTrigger asChild>
+							<Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/10">
+								<Menu className="h-5 w-5" />
+								<span className="sr-only">Otwórz menu nawigacji</span>
+							</Button>
+						</SheetTrigger>
+						<SheetContent side="right" className="w-[300px]">
+							<SheetHeader className="text-left">
+								<SheetTitle>Nawigacja</SheetTitle>
+							</SheetHeader>
+
+							<div className="flex flex-col gap-1 px-4">
+								{navigationItems.map((item) => (
 									<button
+										key={item.label}
 										type="button"
-										onClick={() => handleNavClick(item)}
-										className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground transition-all duration-300 hover:bg-accent/50"
+										onClick={() => scrollToSection(item.sectionId)}
+										className="rounded-md px-4 py-3 text-left text-sm font-medium text-quiet transition-colors hover:bg-brand-soft hover:text-brand-dark"
 									>
 										{item.label}
 									</button>
-								)}
-								<div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-0 h-0.5 bg-gradient-to-r from-primary to-primary/80 transition-all duration-300 group-hover:w-3/4" />
-							</div>
-						))}
-
-						{/* Theme Toggle */}
-						<div className="ml-2 pl-2 border-l border-border/30">
-							<ThemeToggle variant="ghost" align="end" />
-						</div>
-					</div>
-
-					{/* CTA Button - Desktop */}
-					<div className="hidden lg:block"></div>
-
-					{/* Mobile Menu Button + Theme Toggle */}
-					<div className="lg:hidden flex items-center space-x-2">
-						<ThemeToggle variant="ghost" align="end" />
-						<Sheet open={isOpen} onOpenChange={setIsOpen}>
-							<SheetTrigger asChild>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="relative h-10 w-10 hover:bg-accent/50"
+								))}
+								<a
+									href={PROJECT_LINKS.repository}
+									target="_blank"
+									rel="noopener noreferrer"
+									onClick={() => setIsOpen(false)}
+									className="mt-2 inline-flex items-center gap-2 rounded-md px-4 py-3 text-sm font-medium text-quiet transition-colors hover:bg-brand-soft hover:text-brand-dark"
 								>
-									<Menu className="h-5 w-5" />
-									<span className="sr-only">Open navigation menu</span>
-								</Button>
-							</SheetTrigger>
-							<SheetContent
-								side="right"
-								className="w-[300px] bg-background/95 backdrop-blur-xl border-l border-border/50"
-							>
-								<SheetHeader className="text-left space-y-1 pb-6">
-									<SheetTitle className="text-xl font-bold bg-gradient-to-r from-primary to-primary/80 bg-clip-text text-transparent">
-										Navigation
-									</SheetTitle>
-									<SheetDescription className="text-muted-foreground">
-										Explore TanStack Start
-									</SheetDescription>
-								</SheetHeader>
-
-								<div className="flex flex-col space-y-2 pb-6">
-									{navigationItems.map((item) => (
-										<div key={item.label} className="relative group">
-											{item.isExternal ? (
-												<a
-													href={item.href}
-													target="_blank"
-													rel="noopener noreferrer"
-													className="flex items-center justify-between w-full px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground transition-all duration-300 hover:bg-accent/50"
-													onClick={() => setIsOpen(false)}
-												>
-													<span>{item.label}</span>
-													{item.label === "GitHub" ? (
-														<Github className="h-4 w-4" />
-													) : (
-														<ExternalLink className="h-4 w-4" />
-													)}
-												</a>
-											) : (
-												<button
-													type="button"
-													onClick={() => handleNavClick(item)}
-													className="flex items-center w-full px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground transition-all duration-300 hover:bg-accent/50 text-left"
-												>
-													{item.label}
-												</button>
-											)}
-										</div>
-									))}
-								</div>
-
-								{/* Mobile CTA */}
-								<div className="pt-4 border-t border-border/50"></div>
-							</SheetContent>
-						</Sheet>
-					</div>
+									<Github className="h-4 w-4" />
+									GitHub
+								</a>
+							</div>
+						</SheetContent>
+					</Sheet>
 				</div>
 			</div>
 		</nav>
