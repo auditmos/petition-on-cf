@@ -1,10 +1,16 @@
-# tstack-on-cf
+# petition-on-cf
 
-> TanStack Start frontend + Hono API backend on Cloudflare Workers (single-app, no monorepo).
+> Public petition site template on Cloudflare Workers — one deployment = one petition (150proc.pl-style): live signature counter (Durable Object + WebSocket hibernation), D1, Turnstile, PL/EN, Deploy to Cloudflare button. In development — the codebase is currently the inherited tstack-on-cf base; features land as dependency-ordered slice issues.
+
+## Planning (source of truth for what to build)
+
+- [PRD (issue #1)](https://github.com/auditmos/petition-on-cf/issues/1): problem, user stories, implementation decisions, assumptions, validation strategy
+- [Implementation plan](plans/petition-template.md): durable architectural decisions + 11 tracer-bullet slices with acceptance criteria
+- [Issues #2–#13](https://github.com/auditmos/petition-on-cf/issues): grabbable work items, labeled AFK (agent-implementable end-to-end) or HITL (named human checkpoint), ordered via Blocked-by
 
 ## Project
 
-- [Project overview](AGENTS.md): Stack, project structure, scripts, conventions
+- [Project overview](AGENTS.md): Stack, durable decisions, current state, project structure, scripts, conventions
 
 ## Rules
 
@@ -22,7 +28,7 @@
 ### db
 - [Drizzle ORM](.claude/rules/db/drizzle.md): Schema definitions, migrations, query patterns
 - [Zod Validation](.claude/rules/db/zod.md): Schema naming conventions, request/response patterns
-- [Neon Postgres](.claude/rules/db/neon.md): Serverless DB connection patterns
+- [Neon Postgres](.claude/rules/db/neon.md): Serverless DB connection patterns — inherited from the base; replaced by D1 when issue #2 lands
 
 ### frontend
 - [TanStack](.claude/rules/frontend/tanstack.md): Router, Query, server functions, SSR patterns

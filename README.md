@@ -1,582 +1,87 @@
-# TanStack Start on Cloudflare
+# Petition on Cloudflare
 
 *AI agent index: [llms.txt](./llms.txt)*
 
-A production-ready **template** for building full-stack React apps on Cloudflare Workers. Ships with TanStack Start (SSR + file-based routing), a Hono API layer, Neon Postgres via Drizzle ORM, Zod validation, Shadcn/UI, and a strict Biome + Vitest toolchain.
+A **template for running a public petition site** on Cloudflare Workers — one deployment = one petition, modeled on the excellent UX of [150proc.pl](https://150proc.pl/): hero → evidence with cited sources → mechanism → signature form → live counter and Poland map → public supporters list → share → FAQ.
 
-Use it as the starting point for your next project — clone it, rename it, wire up your database, and start shipping.
+> **Status: in development.** Planning is complete; implementation is landing as vertical slices. The codebase is currently the inherited [tstack-on-cf](https://github.com/auditmos/tstack-on-cf) base — see [Current state](#current-state) before running anything.
 
-[![TanStack Start on Cloudflare](https://img.youtube.com/vi/TWWS_lo4kOA/0.jpg)](https://www.youtube.com/watch?v=TWWS_lo4kOA)
+## What this template delivers (when complete)
 
-## Using this Template
+- **Live signature counter + Poland voivodeship map** — a `LiveCounter` Durable Object broadcasts over WebSockets (Hibernation API, ~1 push/sec coalescing) with automatic polling fallback; D1 stays the single source of truth.
+- **Complete Polish legal layer** — three RODO consent checkboxes, inline "Klauzula informacyjna", and full Klauzula RODO + Polityka prywatności routes, copied verbatim from 150proc.pl with proper nouns tokenized for your campaign.
+- **Signature form with trust pipeline** — osoba prywatna / firma toggle, Cloudflare Turnstile (always-pass test keys shipped as defaults), per-IP rate limiting, unique-e-mail dedup, geo attribution from Cloudflare request metadata. No e-mail provider needed, ever.
+- **Public supporters list** — consent-gated, paginated: "Imię N., Miejscowość" or company name.
+- **Bilingual PL/EN** — `/` serves Polish, `/en` English; legal documents stay Polish-only with an EN notice. All copy lives in Zod-validated content files — zero text in components.
+- **Sign CTA always in reach** — hero button plus a floating bottom bar with the live count once you scroll.
+- **One-click start** — a Deploy to Cloudflare button yields a working placeholder demo (D1 + Durable Object auto-provisioned, migrations applied in the deploy command); `pnpm run init-project` then interviews you for petition name, organizer, addressee, domain, and Turnstile keys.
+- **Organizer data access** — documented `wrangler d1` queries export the full signature CSV and the updates-consent e-mail list. No admin panel, no auth surface.
 
-1. Click **Use this template** on GitHub (or `gh repo create --template`).
-2. `pnpm install`.
-3. `pnpm run init-project` — prompts for a kebab-case project name, renames `wrangler.jsonc` + `package.json`, and fans out `.env.example` → `.env` and `.dev.vars.example` → `.dev.vars` / `.staging.vars` / `.production.vars`. Idempotent — re-runnable, never overwrites filled-in files. The script's "Next steps" output lists every field that still needs a value.
-4. Provision a Neon database and fill `DATABASE_HOST/USERNAME/PASSWORD` in `.dev.vars` (and the staging / production variants when you deploy them).
-5. Run `pnpm cf-typegen && pnpm db:migrate:dev && pnpm dev`.
-6. *(Optional, when you're done with the demo)* delete `src/db/client/` and `src/hono/api/clients.ts`. Then start modelling your own domain.
+## Architecture at a glance
 
-See [Quick Start](#quick-start) below for the dev-loop commands.
+```
+visitor ──► Worker (TanStack Start SSR + Hono /api)
+                 │ validate → Turnstile → rate limit → geo → dedup
+                 ▼
+                D1  (single source of truth)
+                 │ fire-and-forget notify
+                 ▼
+          LiveCounter DO  (in-memory counts, rebuilt from D1 on cold start)
+                 │ WebSocket hibernation, ~1 push/sec
+                 ▼
+          connected browsers  (counter + voivodeship map; polling fallback)
+```
 
-> **Before you deploy anything:** the demo API is public unauthenticated CRUD. Read [Security posture](#security-posture).
+Full decision log: [PRD (issue #1)](https://github.com/auditmos/petition-on-cf/issues/1) and the durable-decisions header of [`plans/petition-template.md`](plans/petition-template.md).
 
-## Remove these on project start
+## Roadmap
 
-The following files exist purely to demonstrate the server-function + middleware wiring. They are not imported by any production route — delete them as soon as you start modelling your own domain so they don't linger in the import graph or your search results:
+Implementation is dispatched as dependency-ordered tracer-bullet slices — each issue is independently implementable and verifiable:
 
-- `src/core/middleware/example-middleware.ts`
-- `src/core/functions/example-functions.ts`
-- `src/components/demo/middleware-demo.tsx`
-- `src/components/demo/index.ts`
+| Issue | Slice | Status |
+|---|---|---|
+| [#2](https://github.com/auditmos/petition-on-cf/issues/2) | D1 walking skeleton (Neon → D1, demo cleanup, `signatures` schema) | planned |
+| [#3](https://github.com/auditmos/petition-on-cf/issues/3) | Legal text capture from 150proc.pl (verbatim fixtures) — HITL | planned |
+| [#4](https://github.com/auditmos/petition-on-cf/issues/4) | Minimal sign path | planned |
+| [#5](https://github.com/auditmos/petition-on-cf/issues/5) | Content module + PL/EN routing | planned |
+| [#6](https://github.com/auditmos/petition-on-cf/issues/6) | Trust pipeline: Turnstile, rate limit, geo | planned |
+| [#7](https://github.com/auditmos/petition-on-cf/issues/7) | Live counter DO + floating bar | planned |
+| [#8](https://github.com/auditmos/petition-on-cf/issues/8) | Voivodeship map | planned |
+| [#9](https://github.com/auditmos/petition-on-cf/issues/9) | Full legal layer | planned |
+| [#10](https://github.com/auditmos/petition-on-cf/issues/10) | Supporters list | planned |
+| [#11](https://github.com/auditmos/petition-on-cf/issues/11) | Full page anatomy + mobile pass | planned |
+| [#12](https://github.com/auditmos/petition-on-cf/issues/12) | init-project extension | planned |
+| [#13](https://github.com/auditmos/petition-on-cf/issues/13) | Deploy to Cloudflare button + acceptance run — HITL | planned |
 
-After deleting, also drop the matching `src/readme-demo-cleanup.test.ts` (it exists to keep this list honest) and run `pnpm knip` to catch any stragglers.
+## Current state
 
-## Why this template
+The repo was generated from [tstack-on-cf](https://github.com/auditmos/tstack-on-cf) (TanStack Start + Hono on Workers, Drizzle, Zod, Shadcn/UI, Biome + Vitest + knip) and the code is still that base:
 
-- **Edge-first** — single `src/server.ts` entrypoint that routes `/api/*` to Hono and everything else to TanStack Start, all running on Cloudflare Workers.
-- **Type-safe end-to-end** — strict TypeScript, Zod at every boundary, Drizzle-inferred DB types, typed Cloudflare `Env` via `wrangler types`.
-- **Deep modules** — domain-oriented layout (`src/db/{domain}/`, `src/hono/api/{name}.ts`) with narrow public APIs. See `.claude/rules/deep-modules.md`.
-- **Batteries included** — error infrastructure, Neon + Drizzle migrations, Shadcn/UI, TanStack Query SSR hydration, Vitest, Biome, knip, semantic-release, taze.
-- **Agent-friendly** — project rules in `.claude/rules/` activate automatically based on the files you touch.
+- The database is still **Neon Postgres** — issue [#2](https://github.com/auditmos/petition-on-cf/issues/2) swaps it to **Cloudflare D1** and removes the demo `clients` domain. Until then, the dev loop (`db:*` scripts, `.dev.vars`) expects Neon credentials exactly as documented in the [upstream README](https://github.com/auditmos/tstack-on-cf#readme).
+- No petition feature exists yet; the roadmap above is the build order.
 
-## Quick Start
+### Working on this repo
 
 ```bash
-# Install dependencies
 pnpm install
-
-# Copy env template and fill in your Neon credentials
-cp .dev.vars.example .dev.vars
-
-# Generate Cloudflare Env types
 pnpm cf-typegen
-
-# Run migrations against your dev database
-pnpm db:migrate:dev
-
-# Start the dev server
-pnpm dev
+pnpm dev            # port 3000 — upstream base app until slices land
 ```
 
-The app runs on http://localhost:3000. API endpoints are served under `/api/*`.
+Before declaring any change done: `pnpm lint && pnpm types && pnpm test && pnpm knip`.
 
-## Scripts
+Base-stack documentation (scripts, testing projects, deploy runbook, error handling, secrets) lives in the [upstream README](https://github.com/auditmos/tstack-on-cf#readme) and stays accurate until the corresponding slices rewrite this repo — this README will grow the template's own quick start as features land (issue #13 finalizes it).
 
-| Script | Purpose |
-|--------|---------|
-| `pnpm dev` | Dev server on port 3000 (Vite + Cloudflare plugin) |
-| `pnpm build` | Production build |
-| `pnpm serve` | Preview the production build locally |
-| `pnpm build:{staging,production}` | Build for a specific env (bakes env config via `CLOUDFLARE_ENV=<env>`) |
-| `pnpm run deploy` | Build and deploy to the default (`dev`) Cloudflare Workers config — needs `pnpm run`, as bare `deploy` is pnpm's own workspace command |
-| `pnpm deploy:staging` | Build with `CLOUDFLARE_ENV=staging` and deploy the pre-configured worker |
-| `pnpm deploy:production` | Build with `CLOUDFLARE_ENV=production` and deploy the pre-configured worker |
-| `pnpm cf-typegen` | Generate `Env` types from `wrangler.jsonc` |
-| `pnpm test` / `pnpm test:watch` / `pnpm test:coverage` | Vitest |
-| `pnpm types` | `tsc --noEmit` type-check |
-| `pnpm lint` / `pnpm lint:fix` | Biome check / auto-fix |
-| `pnpm knip` | Detect unused files, deps, and exports |
-| `pnpm db:generate:{dev,staging,production}` | Generate Drizzle migrations for each env |
-| `pnpm db:migrate:{dev,staging,production}` | Apply migrations to each env |
-| `pnpm db:pull:{dev,staging,production}` | Pull schema from existing DB |
-| `pnpm db:studio` | Open Drizzle Studio against dev |
-| `pnpm db:seed:{dev,staging,production}` | Run `scripts/seed.ts` against each env |
-| `pnpm deps` / `pnpm deps:update` | Check / apply dependency updates via taze |
-| `pnpm release` | semantic-release |
+## Planning artifacts
 
-All `db:*` scripts load secrets via `@dotenvx/dotenvx` from `.dev.vars`, `.staging.vars`, or `.production.vars`.
+- **[PRD — issue #1](https://github.com/auditmos/petition-on-cf/issues/1)**: problem, 38 user stories, implementation decisions, assumptions, tradeoffs, validation strategy
+- **[`plans/petition-template.md`](plans/petition-template.md)**: durable architectural decisions + 11 phased slices with acceptance criteria
+- **[Issues #2–#13](https://github.com/auditmos/petition-on-cf/issues)**: dependency-ordered work items, labeled `AFK` (agent-implementable end-to-end) or `HITL` (named human checkpoint)
 
-Knowing the deploy scripts is not the same as knowing the order to run them in. Releasing is a manual procedure by decision, and the [Release & rollback runbook](docs/release-runbook.md) is that procedure: migrate, build, deploy and verify per environment, plus how to ship to a fraction of traffic first and how to get back to a working version.
+## Credits
 
-## Project Structure
-
-```
-src/
-├── server.ts                  # CF Workers entry — routes /api/* → Hono, rest → TanStack Start
-├── router.tsx                 # TanStack Router instance
-├── routes/                    # File-based routes (auto-generates routeTree.gen.ts)
-│   ├── __root.tsx
-│   ├── index.tsx
-│   └── clients.tsx
-├── components/
-│   ├── ui/                    # Shadcn primitives (do not edit manually)
-│   ├── landing/               # Landing page sections
-│   ├── navigation/            # App navigation
-│   ├── theme/                 # Theme provider / toggle
-│   └── clients/               # Feature components
-├── core/
-│   ├── errors.ts              # AppError, Result<T>, isUniqueViolation
-│   ├── functions/             # TanStack server functions
-│   └── middleware/            # Server-function middleware
-├── db/
-│   ├── setup.ts               # initDatabase / getDb singleton
-│   ├── index.ts               # Public DB module API
-│   ├── schema.ts              # Re-exports all tables
-│   ├── migrations/dev/        # Drizzle migrations (staging/production on demand)
-│   ├── client/                # Domain: clients (table, queries, zod schema)
-│   └── health/                # Domain: health check query
-├── hono/
-│   ├── factory.ts             # Typed Hono factory with CF Bindings
-│   ├── api.ts                 # Router mounting /api/health, /api/clients
-│   └── api/
-│       ├── health.ts
-│       └── clients.ts         # REST CRUD for clients
-├── integrations/tanstack-query/
-├── lib/
-├── utils/
-└── styles.css                 # Tailwind v4 entry
-```
-
-Path alias `@/*` resolves to `src/*`.
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Framework | TanStack Start (Router + Query SSR) |
-| UI | React 19, Shadcn/UI (new-york, Zinc), Tailwind CSS v4, Lucide |
-| API | Hono on Cloudflare Workers |
-| Runtime | Cloudflare Workers (`nodejs_compat`) |
-| Database | Neon Postgres + Drizzle ORM (`neon-http`) |
-| Validation | Zod 4 |
-| Forms | TanStack Form |
-| Language | TypeScript (strict) |
-| Linter | Biome 2 |
-| Testing | Vitest + Testing Library + jsdom |
-| Dead-code detection | knip |
-| Release | semantic-release |
-| Package manager | pnpm 10 |
-
-## Cloudflare Integration
-
-### `wrangler.jsonc`
-
-```jsonc
-{
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "tanstack-start-app",
-  "compatibility_date": "2026-08-01",
-  "compatibility_flags": ["nodejs_compat"],
-  "main": "./src/server.ts",
-  "vars": {
-    "CLOUDFLARE_ENV": "dev"
-  },
-  "secrets": {
-    "required": ["DATABASE_HOST", "DATABASE_USERNAME", "DATABASE_PASSWORD"]
-  },
-  "upload_source_maps": true,
-  "workers_dev": true,
-  "preview_urls": true
-}
-```
-
-`DATABASE_HOST`, `DATABASE_USERNAME`, and `DATABASE_PASSWORD` are **secrets**, not plain `vars` — they reach the Worker via `.dev.vars` locally and `wrangler secret put` in deployed environments (see [Secrets & Environments](#secrets--environments)). The `secrets.required` block is the single source of truth for their names: `wrangler types` emits them on `Env` from that declaration rather than inferring them from `.dev.vars`, so type generation produces identical output on a fresh checkout with no secrets file. It also constrains which keys local dev loads, and makes `wrangler deploy` fail with a named list when one was never set on the Worker.
-
-`secrets` is **not** inherited by `env` blocks — repeat the same block inside `env.staging` and `env.production`.
-
-- Use `wrangler.jsonc` (not `.toml`) for configuration.
-- Prefer `custom_domain: true` over routes with `zone_name` — see `.claude/rules/cloudflare-deployment.md`.
-- Run `pnpm cf-typegen` whenever you add bindings to regenerate `worker-configuration.d.ts`.
-
-`upload_source_maps` is on, and inherited by every environment. Observability is
-already enabled above; without source maps the traces it collects point at
-minified output, which is the expensive half of the feature paying for the
-useless half.
-
-#### Reachability per environment
-
-Stated in the configuration rather than left to platform defaults, so you know
-where an environment answers before you deploy it — not after.
-
-| Environment | `workers.dev` URL | Preview URLs | Custom domain |
-| ----------- | ----------------- | ------------ | ------------- |
-| `dev` (top level) | on | on | — |
-| `staging` | on | on | commented placeholder |
-| `production` | **off** | **off** | commented placeholder |
-
-Production is deliberately unreachable until you fill in its custom domain. The
-demo API is public unauthenticated CRUD (see [Security posture](#security-posture))
-and a `workers.dev` URL is guessable, so the template will not put that
-combination on the internet for you. Uncomment the `routes` line in
-`env.production`, or set `workers_dev` back to `true` if you actually want the
-subdomain.
-
-#### Smart Placement
-
-Present in `wrangler.jsonc`, commented out. It moves your Worker's execution
-towards your database instead of towards your users, which pays off only for a
-specific shape of application. [The decision record](docs/decisions/smart-placement.md)
-covers when to enable it and how to measure whether it helped — the config
-points there rather than repeating it.
-
-### Custom Server Entry (`src/server.ts`)
-
-One fetch handler owns the entire worker: it boots the DB once per isolate, then dispatches to Hono or TanStack Start.
-
-```ts
-import handler from "@tanstack/react-start/server-entry";
-import { initDatabase } from "@/db";
-import { apiHono } from "@/hono/api";
-
-export default {
-  fetch(request: Request, env: Env, ctx: ExecutionContext) {
-    initDatabase({
-      host: env.DATABASE_HOST,
-      username: env.DATABASE_USERNAME,
-      password: env.DATABASE_PASSWORD,
-    });
-
-    const url = new URL(request.url);
-
-    if (url.pathname.startsWith("/api/")) {
-      return apiHono.fetch(request, env, ctx);
-    }
-
-    return handler.fetch(request, { context: { fromFetch: true } });
-  },
-};
-```
-
-You can extend this handler with Queue consumers, scheduled events, or Durable Object bindings as your project grows.
-
-### Secrets & Environments
-
-Secrets live in per-environment `.vars` files, never committed:
-
-```bash
-# .dev.vars
-CLOUDFLARE_ENV=dev
-DATABASE_HOST="ep-xxx.region.aws.neon.tech/neondb?sslmode=require"
-DATABASE_USERNAME="neondb_owner"
-DATABASE_PASSWORD="npg_xxx"
-```
-
-For staging/production, create `.staging.vars` / `.production.vars` for local DB tooling (Drizzle migrations, etc.), and push the same keys to Cloudflare as secrets:
-
-```bash
-wrangler secret put DATABASE_HOST       --env staging
-wrangler secret put DATABASE_USERNAME   --env staging
-wrangler secret put DATABASE_PASSWORD   --env staging
-
-wrangler secret put DATABASE_HOST       --env production
-wrangler secret put DATABASE_USERNAME   --env production
-wrangler secret put DATABASE_PASSWORD   --env production
-```
-
-Never commit `DATABASE_*` values to `wrangler.jsonc` — they belong in secrets, not `vars`.
-
-## Database (Neon + Drizzle)
-
-The DB module follows the **deep-modules** pattern: every domain has its own folder with a narrow public API.
-
-```
-src/db/client/
-├── table.ts      # pgTable definition
-├── schema.ts     # Zod schemas for input/output
-├── queries.ts    # getClients, getClient, createClient, updateClient, deleteClient
-└── index.ts      # Public re-exports
-```
-
-- `initDatabase()` is called once per Worker isolate from `src/server.ts`.
-- Every query calls `getDb()` — never pass the DB as a parameter.
-- Inputs are validated with Zod at the API boundary; mutations use `.returning()` to avoid extra round trips.
-
-### Migration Workflow
-
-Each environment has its own Drizzle config (`drizzle-{env}.config.ts`) and migration directory (`src/db/migrations/{env}/`).
-
-#### Migration directories
-
-Only the development directory ships with the template. The others are created
-the first time you generate migrations for that environment — there is nothing
-to commit until you provision it.
-
-| Environment | Directory | Status |
-| ----------- | --------- | ------ |
-| `dev` | `src/db/migrations/dev` | In the repository |
-| `staging` | `src/db/migrations/staging` | Created by `pnpm db:generate:staging` |
-| `production` | `src/db/migrations/production` | Created by `pnpm db:generate:production` |
-
-```bash
-# 1. Edit your table definition in src/db/{domain}/table.ts
-# 2. Generate a migration for the target environment
-pnpm db:generate:dev
-pnpm db:generate:staging
-pnpm db:generate:production
-
-# 3. Apply it
-pnpm db:migrate:dev
-pnpm db:migrate:staging
-pnpm db:migrate:production
-
-# Pull schema from an existing database
-pnpm db:pull:dev
-
-# Seed sample data
-pnpm db:seed:dev
-
-# Inspect data
-pnpm db:studio
-```
-
-Per-env configs (`drizzle-dev.config.ts`, `drizzle-staging.config.ts`, `drizzle-production.config.ts`) all point at `src/db/schema.ts` but write migrations to separate directories, allowing independent migration tracking per environment.
-
-## REST API with Hono
-
-All `/api/*` routes are handled by Hono. Endpoints live in `src/hono/api/` and are mounted in `src/hono/api.ts`.
-
-### Example: `GET /api/clients`
-
-```ts
-// src/hono/api/clients.ts
-import { isUniqueViolation } from "@/core/errors";
-import {
-  ClientCreateRequestSchema,
-  createClient,
-  getClients,
-  PaginationRequestSchema,
-} from "@/db/client";
-import { createHono } from "@/hono/factory";
-
-const clientsEndpoint = createHono();
-
-clientsEndpoint.get("/", async (c) => {
-  const parsed = PaginationRequestSchema.safeParse({
-    limit: c.req.query("limit"),
-    offset: c.req.query("offset"),
-  });
-  if (!parsed.success) return c.json({ error: parsed.error.message }, 400);
-  return c.json(await getClients(parsed.data));
-});
-
-clientsEndpoint.post("/", async (c) => {
-  const parsed = ClientCreateRequestSchema.safeParse(await c.req.json());
-  if (!parsed.success) return c.json({ error: parsed.error.message }, 400);
-
-  try {
-    return c.json(await createClient(parsed.data), 201);
-  } catch (err) {
-    if (isUniqueViolation(err)) return c.json({ error: "Email already exists" }, 409);
-    throw err;
-  }
-});
-
-export default clientsEndpoint;
-```
-
-### Mounting a New Endpoint
-
-```ts
-// src/hono/api.ts
-import { createHono } from "./factory";
-import clientsEndpoint from "@/hono/api/clients";
-import healthEndpoint from "@/hono/api/health";
-
-export const apiHono = createHono().basePath("/api");
-
-apiHono.route("/health", healthEndpoint);
-apiHono.route("/clients", clientsEndpoint);
-```
-
-The `createHono()` factory types `Bindings: Env` so `c.env` is fully typed against your Cloudflare configuration.
-
-### Hono vs TanStack Server Functions
-
-| Use Hono REST APIs | Use TanStack Server Functions |
-|--------------------|-------------------------------|
-| Public APIs for external clients | Server logic called from React |
-| Webhooks | Form submissions |
-| Third-party integrations | Data fetching for UI |
-| Anything with a URL contract | Type-safe client↔server calls |
-
-## Security posture
-
-**The demo API is public, unauthenticated create-read-update-delete. It must not ship as-is.**
-
-Every `/api/*` route answers any request that reaches the Worker — including `POST`, `PUT` and `DELETE` on `/api/clients`. Anyone who knows the URL can write to and delete from your database. That is deliberate: these routes are scaffolding you delete, and a token check shipped in a template invites being mistaken for something production-grade. So no authentication is implemented here. What ships instead is the seam it attaches to.
-
-**Authentication attaches in `src/hono/factory.ts`.** `createHono()` applies every middleware it is handed to `*`, ahead of any handler the endpoint registers:
-
-```ts
-import { type ApiMiddleware, createHono } from "@/hono/factory";
-
-const requireApiKey: ApiMiddleware = async (c, next) => {
-  if (c.req.header("authorization") !== `Bearer ${c.env.API_TOKEN}`) {
-    return c.json({ error: "Unauthorized" }, 401);
-  }
-  await next();
-};
-
-const clientsEndpoint = createHono(requireApiKey);
-```
-
-Attach it per endpoint, or on the `createHono()` call in `src/hono/api.ts` to cover every mounted route at once. Existing call sites are untouched — `createHono()` with no arguments is exactly what it was, an unauthenticated endpoint.
-
-**Before you deploy:**
-
-- Delete the demo surface or put authentication in front of it — `src/db/client/`, `src/hono/api/clients.ts`, and the `/clients` mount in `src/hono/api.ts`.
-- Decide what `/api/health/ready` may disclose. It currently returns the environment name and database reachability to anyone who asks.
-- Add cross-origin configuration if browsers on other origins will call this API. None is configured, so none is applied.
-- Add rate limiting. There is none, and a public write endpoint without it is a bill waiting to happen.
-- Set the Worker's secrets — see [Secrets & Environments](#secrets--environments).
-
-Token validation, session handling, cross-origin configuration and rate limiting are deliberately absent rather than half-implemented: a seam you fill is honest, a partial implementation you inherit is not.
-
-## Error Handling
-
-Error infrastructure lives in `src/core/errors.ts`:
-
-```ts
-export class AppError extends Error {
-  constructor(
-    message: string,
-    public code: ErrorCode,
-    public status: number = 500,
-    public field?: string,
-  ) { super(message); this.name = "AppError"; }
-}
-
-export type Result<T> = { ok: true; data: T } | { ok: false; error: AppError };
-
-export function isUniqueViolation(error: unknown): boolean { /* ... */ }
-```
-
-- Use `AppError` for known, recoverable failures.
-- Use `Result<T>` when a caller needs to branch on success/failure without throwing.
-- Check `error.cause.code` (not `error.message`) when inspecting Drizzle errors — the raw Postgres code lives on `cause`. `isUniqueViolation()` is the idiomatic way to detect `23505` conflicts.
-- Unexpected errors propagate to the Hono global `onError` handler.
-
-See `.claude/rules/error-handling.md` for the full convention.
-
-## Server Functions & TanStack Query
-
-Server functions run exclusively on the server with full type safety across the boundary:
-
-```ts
-// src/core/middleware/example-middleware.ts
-export const exampleMiddleware = createMiddleware({ type: "function" }).server(
-  async ({ next }) => next({ context: { data: "Context from middleware" } }),
-);
-
-// src/core/functions/example-functions.ts
-const ExampleInputSchema = z.object({ exampleKey: z.string().min(1) });
-
-export const exampleFunction = createServerFn()
-  .middleware([exampleMiddleware])
-  .inputValidator((data: z.infer<typeof ExampleInputSchema>) =>
-    ExampleInputSchema.parse(data),
-  )
-  .handler(async (ctx) => {
-    // ctx.data — validated input
-    // ctx.context — middleware context
-    return "Server response";
-  });
-```
-
-Call them from components via TanStack Query:
-
-```tsx
-import { useMutation } from "@tanstack/react-query";
-import { exampleFunction } from "@/core/functions/example-functions";
-
-function MyComponent() {
-  const mutation = useMutation({ mutationFn: exampleFunction });
-  return (
-    <button
-      onClick={() => mutation.mutate({ exampleKey: "Hello Server!" })}
-      disabled={mutation.isPending}
-    >
-      {mutation.isPending ? "Loading..." : "Call Server Function"}
-    </button>
-  );
-}
-```
-
-SSR hydration is wired up in `src/integrations/tanstack-query/` — loaders can prefetch into the query cache and it streams down with the HTML.
-
-## Routing & UI
-
-- **File-based routing** — add files to `src/routes/`, the tree auto-generates to `routeTree.gen.ts` on dev/build. Never edit the generated file.
-- **Root layout** — `src/routes/__root.tsx`.
-- **Shadcn/UI** — add components with `pnpx shadcn@latest add <component>`. Configured via `components.json` (new-york style, Zinc base, CSS variables).
-- **Tailwind v4** — configured through the `@tailwindcss/vite` plugin, no separate config file. Styles entrypoint: `src/styles.css`.
-
-## Testing
-
-```bash
-pnpm test           # run once
-pnpm test:watch     # watch mode
-pnpm test:coverage  # v8 coverage
-```
-
-- Tests live next to source as `*.test.ts` / `*.test.tsx`.
-- Vitest globals are enabled — no need to import `describe` / `it` / `expect`.
-- Route files (`src/routes/**`) are excluded from test discovery.
-- Test at module boundaries (exported queries, HTTP requests, user interactions), not internals. See `.claude/rules/deep-modules.md`.
-
-The suite is split across Vitest projects, all driven by that one `pnpm test`:
-
-| Project | Runs | Files |
-|---------|------|-------|
-| `node` | Node | `src/**/*.test.ts`, `scripts/**/*.test.ts` |
-| `workers` | `workerd`, via `@cloudflare/vitest-pool-workers` | `src/**/*.worker.test.ts` |
-| `components` | jsdom | `src/**/*.test.tsx` |
-
-The suffix picks the project, so there is nothing to configure per file: name a
-test `*.test.tsx` and it renders under a DOM with Testing Library, `*.worker.test.ts`
-and it runs in the Workers runtime, anything else and it runs in Node.
-
-`src/dom-shims.ts` stands in for the browser APIs jsdom omits — `ResizeObserver`,
-which Radix primitives use to position themselves, and `matchMedia`, which the
-theme provider reads. `src/components/theme/theme.test.tsx` is the worked
-example: it opens the theme menu by keyboard and asserts the document actually
-darkens.
-
-Name a file `*.worker.test.ts` and it runs inside the real Workers runtime with the bindings from `wrangler.jsonc`, reachable through `cloudflare:test`:
-
-```ts
-import { env, SELF } from "cloudflare:test";
-
-const res = await SELF.fetch("https://example.com/api/health/live"); // real dispatch
-expect(env.CLOUDFLARE_ENV).toBe("dev");                             // real binding
-```
-
-Secrets are never read from your `.dev.vars` for these — `vitest.config.ts` binds inert stand-ins, so the suite behaves the same on your machine and in CI. TanStack Start's server entry is stubbed in that project (it needs a full Start build to resolve); dispatch is what these tests are for, and the stub makes "this request reached the app, not the API" an exact assertion.
-
-Add a project to `vitest.config.ts` to run tests under another environment — exclude `src/routes/**` and keep `pnpm test` the only entry point, both of which `src/vitest-projects.test.ts` enforces.
-
-## Agent Rules & Design Docs
-
-This template is set up for agent-assisted development:
-
-- `.claude/CLAUDE.md` — project-wide instructions.
-- `.claude/rules/` — topic rules (`general.md`, `deep-modules.md`, `error-handling.md`, `atomic-imports.md`, `cloudflare-deployment.md`, plus stack-specific rules under `.claude/rules/db/` and `.claude/rules/frontend/`) that activate automatically based on the files being edited.
-- `AGENTS.md` — agent workflow guide.
-- `docs/` — single source of truth for business requirements and design docs.
-
-Not every agent tool is supported to the same degree, and guessing wrong wastes a session. The support level of each is stated in [Agent support](docs/decisions/agent-support.md).
-
-### Decisions already made for you
-
-Three choices this template made on your behalf are written down rather than left to be inferred from the configuration. Each records what was decided, why, and the conditions under which you should decide differently:
-
-- [Database driver](docs/decisions/database-driver.md) — why the fetch-based Neon driver rather than Hyperdrive.
-- [Smart Placement](docs/decisions/smart-placement.md) — why it ships off, when to turn it on, and how to measure whether it helped.
-- [Agent support](docs/decisions/agent-support.md) — which agent tooling is first-class, best-effort, or unsupported.
-
-## Learn More
-
-- **[TanStack Start](https://tanstack.com/start)** — full-stack React framework
-- **[TanStack Router](https://tanstack.com/router)** — type-safe routing
-- **[TanStack Query](https://tanstack.com/query)** — server state management
-- **[Hono](https://hono.dev/)** — fast web framework for APIs
-- **[Drizzle ORM](https://orm.drizzle.team/)** — type-safe SQL
-- **[Neon](https://neon.tech/)** — serverless Postgres
-- **[Cloudflare Workers](https://workers.cloudflare.com/)** — edge computing platform
-- **[Shadcn/UI](https://ui.shadcn.com/)** — component library
-- **[Tailwind CSS](https://tailwindcss.com/)** — utility-first CSS
-- **[Biome](https://biomejs.dev/)** — fast formatter and linter
+- UX and legal-layer reference: [150proc.pl](https://150proc.pl/). Only the legal texts are copied (verbatim, tokenized); campaign content is not.
+- Base stack: [tstack-on-cf](https://github.com/auditmos/tstack-on-cf).
 
 ## License
 
