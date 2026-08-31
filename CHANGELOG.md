@@ -1,3 +1,15 @@
+# 1.0.0 (2026-08-31)
+
+
+### Bug Fixes
+
+* **ci:** restore security posture section and rebind stale README guards ([4d8d925](https://github.com/auditmos/petition-on-cf/commit/4d8d9254506098832454a174c6f73637e00f7839)), closes [#13](https://github.com/auditmos/petition-on-cf/issues/13)
+
+
+### Features
+
+* **ui:** adopt editorial design system and Polish landing page ([89df6fb](https://github.com/auditmos/petition-on-cf/commit/89df6fb685f111ad1d64c739ce374a48e932d1f3)), closes [#216ed4](https://github.com/auditmos/petition-on-cf/issues/216ed4) [#2](https://github.com/auditmos/petition-on-cf/issues/2)
+
 ## [1.9.1](https://github.com/auditmos/tstack-on-cf/compare/v1.9.0...v1.9.1) (2026-08-28)
 
 
