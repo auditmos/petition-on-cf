@@ -77,9 +77,12 @@ jobs:
           }
           writeFileSync(path, updated);
 
-          // The README quotes this config, and an invariant test fails when the
+          // When the README quotes this config, an invariant test fails if the
           // two disagree — so the bump has to land in both files or this job
-          // opens a pull request that fails its own CI.
+          // opens a pull request that fails its own CI. When it does not quote
+          // it, as today (base-stack configuration is documented in the
+          // upstream README), there is nothing to rewrite and the absence is
+          // not an error. src/readme-truth.test.ts pins both directions.
           const readmePath = "README.md";
           const readme = readFileSync(readmePath, "utf8");
           const readmeUpdated = readme.replace(
@@ -87,10 +90,11 @@ jobs:
             `$1"${today}"`,
           );
           if (readmeUpdated === readme) {
-            console.error("Failed to rewrite compatibility_date in README.md — regex did not match");
-            process.exit(1);
+            console.log("README.md does not quote compatibility_date — nothing to rewrite there");
+          } else {
+            writeFileSync(readmePath, readmeUpdated);
+            console.log("Rewrote compatibility_date in README.md");
           }
-          writeFileSync(readmePath, readmeUpdated);
 
           appendFileSync(out, "bump=true\n");
           appendFileSync(out, `from=${current}\n`);

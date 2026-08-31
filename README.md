@@ -72,6 +72,20 @@ Before declaring any change done: `pnpm lint && pnpm types && pnpm test && pnpm 
 
 Base-stack documentation (scripts, testing projects, deploy runbook, error handling, secrets) lives in the [upstream README](https://github.com/auditmos/tstack-on-cf#readme) and stays accurate until the corresponding slices rewrite this repo — this README will grow the template's own quick start as features land (issue #13 finalizes it).
 
+## Security posture
+
+The inherited base ships a demo `clients` CRUD endpoint at `/api/clients`. It is **intentionally unauthenticated** — it exists to demonstrate the endpoint shape — and it **must not ship as-is**. Issue [#2](https://github.com/auditmos/petition-on-cf/issues/2) deletes it alongside the Neon → D1 swap; until that lands it is reachable in any deploy of this repo.
+
+Authentication attaches at `src/hono/factory.ts`. `createHono(...middleware)` accepts `ApiMiddleware` handlers and applies them to every route of the endpoint it builds, so a guard added there covers the whole surface instead of one handler.
+
+The finished template has **no auth surface by design**: the petition site is entirely public, and organizer data access is documented `wrangler d1` export queries rather than a protected endpoint. That decision is about the petition API — it is not a reason to leave the inherited demo CRUD exposed.
+
+Before you deploy:
+
+- Remove the demo `clients` domain (or land issue #2) so no unauthenticated write path remains.
+- Replace the Turnstile defaults with real keys — the shipped values are Cloudflare's always-pass test keys and accept every submission.
+- Review the legal texts against your campaign; responsibility for their sufficiency rests with the organizer.
+
 ## Planning artifacts
 
 - **[PRD — issue #1](https://github.com/auditmos/petition-on-cf/issues/1)**: problem, 38 user stories, implementation decisions, assumptions, tradeoffs, validation strategy
