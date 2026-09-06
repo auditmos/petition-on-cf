@@ -76,9 +76,12 @@ pnpm run db:migrate:dev          # applies migrations to the local D1
 pnpm dev                         # port 3000
 ```
 
-Read or write the local database directly with Wrangler — this is also how you seed a row to watch the counter move:
+`pnpm db:seed:dev` fills the local database with 189 demo signatures spread unevenly across the voivodeships, so the counter has a number and the map has something to shade. It leaves one voivodeship empty and seven signatures unattributed on purpose — those are the two states easiest to break without noticing. Running it twice changes nothing; `scripts/seed-dev.sql` says how to empty the table again.
+
+Read or write the local database directly with Wrangler — this is also how you add a single row and watch the counter move:
 
 ```bash
+pnpm run db:seed:dev
 pnpm exec wrangler d1 execute DB --local --command "SELECT count(*) FROM signatures"
 ```
 

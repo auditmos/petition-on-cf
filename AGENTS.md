@@ -83,6 +83,7 @@ pnpm db:migrate:dev       # apply migrations to the local D1
 pnpm db:migrate:staging   # apply migrations to the remote staging D1
 pnpm db:migrate:production # apply migrations to the remote production D1
 pnpm db:list:dev          # which migrations the local D1 still needs
+pnpm db:seed:dev          # 189 demo signatures across the voivodeships (safe to re-run)
 
 # Read or write the local database directly (also how you seed a row)
 pnpm exec wrangler d1 execute DB --local --command "SELECT count(*) FROM signatures"

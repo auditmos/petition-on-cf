@@ -38,6 +38,7 @@
 		"db:migrate:dev": "wrangler d1 migrations apply DB --local",
 		"db:migrate:staging": "wrangler d1 migrations apply DB --env staging --remote",
 		"db:migrate:production": "wrangler d1 migrations apply DB --env production --remote",
+		"db:seed:dev": "wrangler d1 execute DB --local --file scripts/seed-dev.sql",
 		"db:list:dev": "wrangler d1 migrations list DB --local"
 	},
 	"dependencies": {
