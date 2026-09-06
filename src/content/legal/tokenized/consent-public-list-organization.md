@@ -1,1 +1,1 @@
-Wyrażam zgodę na publiczne udostępnienie nazwy organizacji oraz mojego imienia, nazwiska i funkcji na liście podmiotów popierających petycję „{{petitionName}}”, publikowanej w serwisie {{domain}} oraz na stronie internetowej adresata petycji.
+Wyrażam zgodę na publiczne udostępnienie nazwy {{signerOrgNounGen}} oraz mojego imienia, nazwiska i funkcji na liście podmiotów popierających petycję „{{petitionName}}”, publikowanej w serwisie {{domain}} oraz na stronie internetowej adresata petycji.

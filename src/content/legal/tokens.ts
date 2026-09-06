@@ -10,14 +10,19 @@
  * with (PRD story 29). `init-project` (issue #12) overwrites it with a real
  * organizer's values; issue #9 renders the fixtures through it.
  *
- * ## Why the short name has four entries
+ * ## Why some names carry one entry per grammatical case
  *
- * Polish declines nouns, so an organizer's short name appears in a different
- * form depending on its role in the sentence — "interes Organizacji" but "Z
- * Organizacją". String substitution cannot decline a noun, so the config has to
- * supply each form the legal texts actually use. Four cases cover them: this is
- * the fix for the finding that the reference wording is only grammatical for an
- * organizer whose short name declines exactly like the original's.
+ * Polish declines nouns, so a name appears in a different form depending on its
+ * role in the sentence — "interes Organizacji" but "Z Organizacją". String
+ * substitution cannot decline a noun, so the config has to supply each form the
+ * legal texts actually use.
+ *
+ * That applies twice here. The organizer's short name needs four cases, which
+ * is what makes the wording grammatical for an organizer whose short name does
+ * not decline like the reference one's. The noun for a non-personal signer
+ * needs its own, because the deployment chooses that word: "firma" and
+ * "organizacja" decline differently ("nazwy firmy" vs "nazwy organizacji"), so
+ * it cannot be one token reused everywhere either.
  */
 export const PLACEHOLDER_VALUES = {
 	/** Petition name, always rendered inside Polish quotes: „…”. */
@@ -34,6 +39,14 @@ export const PLACEHOLDER_VALUES = {
 	organizerShortNameAcc: "Organizację",
 	/** Short name, narzędnik — "Z Organizacją". */
 	organizerShortNameIns: "Organizacją",
+	/**
+	 * The word this deployment uses for a non-personal signer, dopełniacz —
+	 * "nazwy organizacji" / "nazwy firmy". The deployment picks the noun
+	 * (issue #12); the nominative and miejscownik forms it also needs for the
+	 * signer-type toggle and the two organisation field labels live with the
+	 * rest of the UI copy in the content module, not here.
+	 */
+	signerOrgNounGen: "organizacji",
 	organizerStreet: "ul. Przykładowa 1",
 	organizerCity: "00-001 Miasto",
 	organizerKrs: "0000000000",

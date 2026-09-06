@@ -8,9 +8,10 @@ Durable decisions that apply across all phases:
 
 - **Deployment model**: one petition = one deployment. No multi-petition support anywhere in the data model or UI.
 - **Architecture style**: Cloudflare-native full stack inherited from tstack-on-cf — TanStack Start (SSR) + Hono API on Workers. D1 (SQLite, Drizzle ORM) is the **single source of truth**; one `LiveCounter` Durable Object per deployment is a cache + broadcaster only, never a write path. Write flow: Worker → D1 → fire-and-forget DO notify.
-- **Data model**: single `signatures` entity — first name, surname, e-mail (unique, dedup key), city (display-only free text), signer type (person/company), company name (nullable), voivodeship code (from Cloudflare geo-IP `regionCode`, ISO 3166-2:PL), three consent flags (RODO acknowledgment — required; public-list consent; updates consent), created-at. Schema is petition-agnostic; no petition entity exists.
+- **Data model**: single `signatures` entity — first name, surname, e-mail (unique, dedup key), city (display-only free text), signer type (person/non-personal entity), entity name (nullable, column `company_name`), voivodeship code (from Cloudflare geo-IP `regionCode`, ISO 3166-2:PL), three consent flags (RODO acknowledgment — required; public-list consent; updates consent), created-at. Schema is petition-agnostic; no petition entity exists.
 - **Live transport**: WebSocket with DO Hibernation API, broadcasts coalesced to ~1/sec; client falls back to polling the snapshot endpoint. SSE explicitly rejected (DO duration billing).
 - **Trust pipeline**: Cloudflare Turnstile (official always-pass test keys as shipped defaults) + per-IP rate limit + unique-e-mail dedup. No e-mail verification, no e-mail provider, ever (PRD scope).
+- **Signer type wording is the deployment's choice.** A signature is either from a private person or from a non-personal entity, and the deployment picks the noun for the second: *firma*, *organizacja*, or another word that fits its campaign. `init-project` prompts for it (Phase 10). Because Polish declines nouns and the two candidates decline differently — "nazwy firmy" but "nazwy organizacji" — the config supplies the noun once per grammatical case the copy actually uses: mianownik for the toggle, dopełniacz for the name label and the public-list consent, miejscownik for the role label. The stored column stays `company_name`; the noun is presentation, not schema, and renaming it would buy a migration and nothing else.
 - **Content externalization**: zero copy in components. Identity values in a site config file (written by `init-project`); all copy in per-language content files (PL/EN) validated by one Zod schema with key parity enforced; legal texts as tokenized Markdown copied **verbatim** from 150proc.pl. Legal documents Polish-only with an EN notice.
 - **Visual design**: editorial-civic register modeled on Polish civic-data journalism (reference: openbooks.pl), accent rotated from crimson to blue. Display serif (Newsreader) for headlines and figures, IBM Plex Sans for everything else, both self-hosted latin/latin-ext only. Semantic tokens (`ink`/`paper`/`ground`/`quiet`/`divider`/`brand`) with the shadcn variables aliased onto them, so no component hardcodes a colour and re-branding is a token edit. Red and green mean outcome only, never identity. Full spec and rationale: `docs/decisions/visual-design-system.md`.
 - **i18n**: path-based — `/` = Polish (default), `/en/*` = English; hreflang + localized OG tags.
@@ -102,7 +103,7 @@ The thinnest complete signing experience: a visitor fills first name, surname, e
 ### Out of scope for this phase
 
 - No Turnstile, no rate limiting, no geo attribution (Phase 4).
-- No person/company toggle, no real consent wording, no inline klauzula (Phase 7).
+- No signer-type toggle, no real consent wording, no inline klauzula (Phase 7).
 - No live updates (Phase 5); count refreshes on reload only.
 
 ### Acceptance criteria
@@ -231,7 +232,7 @@ An SVG Poland map with all 16 voivodeships, shaded by signature counts from the 
 
 ### What to build
 
-Prerequisite first: a real-browser inspection pass of 150proc.pl (it renders client-side) capturing the exact signature form field set, exact consent wording, and the inline klauzula text — legal texts verbatim, everything else structure-only. Then: the form gains the three real consent checkboxes (mandatory RODO acknowledgment; optional public-list consent; optional updates consent) with verbatim wording and tokenized proper nouns, the inline "Klauzula informacyjna" popup, and the osoba prywatna / firma toggle (firma reveals a required company-name field; type + company stored). Consent flags persist per signature. The tokenized legal Markdown pipeline renders two Polish-only routes — Klauzula informacyjna RODO and Polityka prywatności — linked from the checkboxes and footer, each carrying the one-line EN notice on the English side.
+Prerequisite first: a real-browser inspection pass of 150proc.pl (it renders client-side) capturing the exact signature form field set, exact consent wording, and the inline klauzula text — legal texts verbatim, everything else structure-only. Then: the form gains the three real consent checkboxes (mandatory RODO acknowledgment; optional public-list consent; optional updates consent) with verbatim wording and tokenized proper nouns, the inline "Klauzula informacyjna" panel, and the osoba prywatna / *&lt;configured noun&gt;* toggle — the second option reveals a required entity-name field, and the public-list consent switches to its organisation wording, which is a second consent text rather than a variant of the first. Type + entity name stored. Consent flags persist per signature. The tokenized legal Markdown pipeline renders two Polish-only routes — Klauzula informacyjna RODO and Polityka prywatności — linked from the checkboxes and footer, each carrying the one-line EN notice on the English side.
 
 ### Assumptions carried in
 
@@ -247,7 +248,8 @@ Prerequisite first: a real-browser inspection pass of 150proc.pl (it renders cli
 
 - [ ] Captured wording matches the live site verbatim (diff review at implementation time) — [observable: captured-text fixtures committed with source screenshots/notes]
 - [ ] Mandatory consent unticked → validation error; optional consents stored as flags — [test: integration matrix]
-- [ ] Firma toggle requires company name; stored type/company round-trips — [test: integration + E2E toggle behavior]
+- [ ] Non-person toggle requires the entity name; stored type/name round-trips — [test: integration + E2E toggle behavior]
+- [ ] The configured signer noun renders in the toggle, both organisation field labels and the public-list consent, in the right grammatical case for each — [test: render with two different configured nouns, assert no nominative leaks into a declined slot]
 - [ ] Inline klauzula opens at the form with interpolated identity values — [test: E2E popup assertion]
 - [ ] Legal routes render from Markdown with zero unresolved tokens; EN side shows the Polish-only notice — [test: SSR render assertions on both routes and both languages]
 
@@ -261,7 +263,7 @@ What the capture changes about this phase's description above:
 
 - **The legal documents are PDFs, not pages.** The reference site links `/dokumenty/*.pdf`. Serving them as real routes stays right; the source is just a PDF rather than a page scrape.
 - **There are four consent texts, not three.** The public-list consent is rewritten for organisations. One stored flag still suffices; the rendered wording has to switch with the signer type.
-- **The toggle is `organizacja`, not `firma`, and it adds two fields** — `NAZWA ORGANIZACJI` (required) and `TWOJA FUNKCJA W ORGANIZACJI` (optional). The `signatures` schema from Phase 1 has `company_name` only. Decide here or in Phase 2 whether the role field is added or deliberately dropped; the acceptance criterion above still says "firma toggle" and needs rewording either way.
+- **The reference toggle is `organizacja`, not `firma`, and it adds two fields** — the entity name (required) and the signer's role in it (optional). **Resolved 2026-09-06:** the deployment chooses the noun, per the durable decision above; `signerOrgNounGen` is already tokenized in the public-list consent, and the toggle and label forms come from the content module. Still open: whether the optional role field is added to the schema or deliberately dropped — Phase 1 shipped `company_name` and no role column.
 - **Polish declension defeats naive tokenization.** The organizer's short name appears in four grammatical cases across the wording. One token cannot decline a noun, so the vocabulary carries one token per case and the site config must supply each form. Anything generating legal text from these fixtures has to pick the right case, not the nominative everywhere.
 - **Campaign-specific processing was baked into the source texts**, which is why the reference privacy policy was not kept at all and only the petition-signing clause survived from the RODO document. The general rule for this phase: a clause describing processing the deployment does not perform is worse than no clause, so whatever #9 authors must match what this template actually does. It needs its own privacy policy written here.
 - **No addressee token exists.** 150proc.pl never names its addressee in legal text, so the token vocabulary has no slot for one despite issue #3 listing it.
@@ -276,7 +278,7 @@ Also observed, for phases other than this one: the live form requires a postal c
 
 ### What to build
 
-The consent-gated public supporters list: a paginated section showing only signers who ticked the public-list consent — "Imię N., Miejscowość" for persons, company name for companies — newest first, fetched from D1 per page (deliberately not live). A seeded non-consenting signer must never appear in any page of results.
+The consent-gated public supporters list: a paginated section showing only signers who ticked the public-list consent — "Imię N., Miejscowość" for persons, the entity name for non-personal signers — newest first, fetched from D1 per page (deliberately not live). A seeded non-consenting signer must never appear in any page of results.
 
 ### Assumptions carried in
 
@@ -290,7 +292,7 @@ The consent-gated public supporters list: a paginated section showing only signe
 ### Acceptance criteria
 
 - [ ] Only consenting signers appear; non-consenting seeded signer absent from all pages — [test: integration test over seeded mix]
-- [ ] Person renders as "Imię N., Miejscowość"; company renders as company name — [test: render test both formats]
+- [ ] Person renders as "Imię N., Miejscowość"; a non-personal signer renders as its entity name — [test: render test both formats]
 - [ ] Pagination walks the full consenting set without duplicates or gaps — [test: integration pagination walk]
 - [ ] List endpoint never exposes e-mail, full surname, or consent flags — [test: response-shape assertion]
 
@@ -331,7 +333,7 @@ Complete the 150proc.pl-inspired single-page anatomy with generic placeholder co
 
 ### What to build
 
-Extend the inherited `init-project` script with the identity interview: petition display name, organizer/administrator legal name, organizer contact e-mail, petition addressee, public domain, optional social profile URLs, optional Turnstile site key, optional Turnstile secret. Public values land in the site config file; the Turnstile secret lands in local secrets, never in tracked files. The script stays idempotent — re-runs never overwrite filled-in values, and skipped optional prompts leave working defaults (test keys, placeholder socials). The README gains the organizer data-access section: ready-to-run `wrangler d1` export queries (full signature CSV; updates-consent e-mail list) with documented columns.
+Extend the inherited `init-project` script with the identity interview: petition display name, organizer/administrator legal name, organizer contact e-mail, petition addressee, public domain, the signer-type noun, optional social profile URLs, optional Turnstile site key, optional Turnstile secret. Public values land in the site config file; the Turnstile secret lands in local secrets, never in tracked files. The script stays idempotent — re-runs never overwrite filled-in values, and skipped optional prompts leave working defaults (test keys, placeholder socials). The README gains the organizer data-access section: ready-to-run `wrangler d1` export queries (full signature CSV; updates-consent e-mail list) with documented columns.
 
 ### Assumptions carried in
 
@@ -349,6 +351,8 @@ Extend the inherited `init-project` script with the identity interview: petition
 - [ ] Second run over filled values is a no-op — [test: idempotency test compares before/after]
 - [ ] Secret never appears in any tracked file — [test: script test + gitignore assertion]
 - [ ] Personalized values appear in rendered legal texts and checkboxes after the script runs — [test: render test against script-written config]
+- [ ] The signer-type prompt offers *firma* and *organizacja* as picks, accepts a custom noun, and writes all the grammatical cases the copy needs — [test: script test for both offered nouns and one custom answer, asserting the declined forms land in the config]
+- [ ] The organizer short name is likewise captured in every case the legal texts decline it into — [test: script test asserts each case is written and non-empty]
 - [ ] Both documented export queries run against seeded local D1 and yield documented columns — [command: query execution exits 0 with expected header row]
 
 ---
