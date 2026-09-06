@@ -1,3 +1,10 @@
+# [1.7.0](https://github.com/auditmos/petition-on-cf/compare/v1.6.1...v1.7.0) (2026-09-06)
+
+
+### Features
+
+* **trust:** verify with Turnstile, limit per IP, attribute a voivodeship ([e01a0fc](https://github.com/auditmos/petition-on-cf/commit/e01a0fc2e5f7d7aed4d356e160e2f731dad705db)), closes [#6](https://github.com/auditmos/petition-on-cf/issues/6)
+
 ## [1.6.1](https://github.com/auditmos/petition-on-cf/compare/v1.6.0...v1.6.1) (2026-09-06)
 
 
