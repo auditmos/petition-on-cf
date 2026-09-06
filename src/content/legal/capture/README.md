@@ -91,9 +91,12 @@ Phase 7 of `plans/petition-template.md`.
    rewritten for organisations. One stored flag still suffices, but the rendered
    wording has to switch with the signer type.
 3. **The toggle is `organizacja`, not `firma`, and it adds two fields** —
-   organisation name (required) and the signer's role in it (optional). The
-   `signatures` schema from #2 has `company_name` only. #4 or #9 must decide
-   whether the role field is added or deliberately dropped.
+   entity name (required) and the signer's role in it (optional). *Resolved
+   2026-09-06:* the deployment picks the noun, and picks whether the role field
+   is collected at all — on by default for *organizacja*, off for *firma*, and
+   never required when shown. See the durable decisions in
+   `plans/petition-template.md`; #9 carries the additive nullable column, since
+   the schema from #2 has `company_name` only.
 4. **The form asks for a postal code**, required, before the town. The PRD's
    data model has no such field and attributes region from Cloudflare geo-IP
    instead. Worth reconsidering in #6 — a postal code is a far better
