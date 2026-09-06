@@ -12,11 +12,11 @@ healthEndpoint.get("/live", (c) => {
 });
 
 healthEndpoint.get("/ready", async (c) => {
-	const database = await checkDatabase();
+	const database = await checkDatabase(c.env.DB);
 	const response: ReadinessResponse = {
 		status: database === "connected" ? "ok" : "degraded",
 		env: c.env.CLOUDFLARE_ENV,
-		service: "tstack-on-cf",
+		service: "petition-on-cf",
 		time: new Date().toISOString(),
 		database,
 	};

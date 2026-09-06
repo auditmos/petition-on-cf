@@ -25,12 +25,35 @@ export class AppError extends Error {
  */
 export type Result<T> = { ok: true; data: T } | { ok: false; error: AppError };
 
-export function isUniqueViolation(error: unknown): boolean {
-	if (!(error instanceof Error)) return false;
-	const cause = error.cause;
-	if (cause instanceof Error) {
-		const pgCode = (cause as Error & { code?: string }).code;
-		if (pgCode === "23505") return true;
+/** Every message in an error's `cause` chain, outermost first. */
+function causeChain(error: unknown): string[] {
+	const messages: string[] = [];
+	let current = error;
+	while (current instanceof Error) {
+		messages.push(current.message);
+		current = current.cause;
 	}
-	return false;
+	return messages;
+}
+
+/**
+ * The message that explains a failure, rather than the one that wraps it.
+ *
+ * Drizzle rethrows driver errors with `Failed query: <sql>` as the message and
+ * the real error on `cause`; D1 in turn wraps workerd's. A log line built from
+ * the outermost message says what was attempted and never why it failed.
+ */
+export function rootCauseMessage(error: unknown): string {
+	return causeChain(error).at(-1) ?? String(error);
+}
+
+/**
+ * Whether a failed write lost a race for a unique index.
+ *
+ * SQLite — and therefore D1 — reports this in the message rather than in a
+ * code, so this matches text. The alternative is checking for a row first,
+ * which is not a check but a race: the index is the only thing that decides.
+ */
+export function isUniqueViolation(error: unknown): boolean {
+	return causeChain(error).some((message) => /UNIQUE constraint failed/i.test(message));
 }

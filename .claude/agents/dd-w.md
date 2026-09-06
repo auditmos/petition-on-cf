@@ -12,7 +12,7 @@ color: cyan
 @.claude/rules/deep-modules.md
 @.claude/rules/db/drizzle.md
 @.claude/rules/db/zod.md
-@.claude/rules/db/neon.md
+@.claude/rules/db/d1.md
 @.claude/rules/api/hono.md
 @.claude/rules/api/cloudflare-workers.md
 @.claude/rules/frontend/tanstack.md

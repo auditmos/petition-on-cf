@@ -13,20 +13,22 @@ taken after measuring, not a default they inherit.
 Smart Placement moves a Worker's execution away from the data centre nearest the
 user and towards its back-end, when Cloudflare's measurements say the round
 trips to that back-end dominate the request. It is the right setting for an
-application that is chatty with a database pinned to one region — which is
-exactly what the reference setup here is: Neon Postgres in a single region.
+application that is chatty with a database pinned to one region.
 
-That is an argument for enabling it *in this repository's own deployment*, not
-for shipping it enabled in a template. A cloner's database may be somewhere
-else, replicated, or reached through a cache; their Worker may spend its time
-rendering rather than waiting on queries. In those cases Smart Placement is
-neutral at best, and it moves execution away from the user for no gain — a
-regression that is invisible until someone measures.
+This template is not that application. D1 is a Cloudflare binding, the read path
+is one aggregate query per page, and the Worker's remaining time goes into
+server-rendering React — work that belongs near the user. Enabling Smart
+Placement here would move execution away from the reader to save a round trip
+that is not the bottleneck.
 
-The failure mode of an inherited default is that nobody remembers choosing it.
-Commented-out configuration with the reasoning attached asks for a decision;
-an enabled default pretends one was already made on the cloner's behalf, with
-information the template does not have.
+It stays present rather than deleted because a cloner's Worker may become that
+application: a sign path with several sequential statements, or an integration
+with a region-pinned service. In those cases the setting earns its keep — but
+only after measuring. The failure mode of an inherited default is that nobody
+remembers choosing it, and a regression from misplaced execution is invisible
+until someone looks for it. Commented-out configuration with the reasoning
+attached asks for a decision; an enabled default pretends one was already made
+on the cloner's behalf, with information the template does not have.
 
 ## Enable when
 

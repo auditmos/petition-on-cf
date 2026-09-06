@@ -46,11 +46,23 @@ describe("vitest projects", () => {
 
 	// Worker tests would otherwise be collected twice — once in workerd and once
 	// in Node, where `cloudflare:test` does not resolve. Component tests likewise:
-	// in Node there is no document to render into.
+	// in Node there is no document to render into. The `.tsx` half of the worker
+	// glob is the one that overlaps the component project, because a Worker
+	// renders React on the server too.
+	const WORKER_GLOB = "src/**/*.worker.test.{ts,tsx}";
+
 	it("claims each test file for exactly one project", () => {
 		const node = projects.find((p) => p.test?.name === "node");
-		expect(node?.test?.exclude).toContain("src/**/*.worker.test.ts");
+		const components = projects.find((p) => p.test?.name === "components");
+
+		expect(node?.test?.exclude).toContain(WORKER_GLOB);
 		expect(node?.test?.include).not.toContain("src/**/*.test.tsx");
+		expect(components?.test?.exclude).toContain(WORKER_GLOB);
+	});
+
+	it("runs the Workers project over both worker-test extensions", () => {
+		const workers = projects.find((p) => p.test?.name === "workers");
+		expect(workers?.test?.include).toContain(WORKER_GLOB);
 	});
 });
 

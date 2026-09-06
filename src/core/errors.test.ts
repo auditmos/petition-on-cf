@@ -1,4 +1,21 @@
-import { AppError, isUniqueViolation } from "./errors";
+import { AppError, isUniqueViolation, rootCauseMessage } from "./errors";
+
+/**
+ * How a failed D1 statement actually arrives.
+ *
+ * The driver throws with a `D1_ERROR:` prefix and hangs the runtime's own error
+ * off `cause`; Drizzle then wraps that again, and its `message` names the query
+ * rather than the problem. Anything reading a database failure has to walk the
+ * chain, so the fixtures here are chains.
+ */
+function d1Error(reason: string): Error {
+	const runtime = new Error(`${reason}: SQLITE_CONSTRAINT (extended: SQLITE_CONSTRAINT_UNIQUE)`);
+	return new Error(`D1_ERROR: ${reason}`, { cause: runtime });
+}
+
+function drizzleWrapped(cause: Error): Error {
+	return new Error("Failed query: insert into signatures\nparams: ", { cause });
+}
 
 describe("AppError", () => {
 	it("carries code, status, and optional field", () => {
@@ -18,28 +35,51 @@ describe("AppError", () => {
 	});
 });
 
+describe("rootCauseMessage", () => {
+	// Drizzle's own message is "Failed query: <sql>", which says what was asked
+	// and nothing about what went wrong. A log carrying only that is a log that
+	// costs a round trip to the database to interpret.
+	it("reaches past a wrapper to the message that explains the failure", () => {
+		const err = drizzleWrapped(d1Error("UNIQUE constraint failed: signatures.email"));
+
+		expect(rootCauseMessage(err)).toMatch(/UNIQUE constraint failed: signatures\.email/);
+		expect(rootCauseMessage(err)).not.toMatch(/Failed query/);
+	});
+
+	it("returns the message itself when nothing wraps it", () => {
+		expect(rootCauseMessage(new Error("storage unavailable"))).toBe("storage unavailable");
+	});
+
+	it("stringifies whatever was thrown when it is not an Error", () => {
+		expect(rootCauseMessage("oops")).toBe("oops");
+		expect(rootCauseMessage(null)).toBe("null");
+	});
+});
+
 describe("isUniqueViolation", () => {
-	it("detects pg code 23505 on error.cause", () => {
-		const cause = Object.assign(new Error("duplicate key"), { code: "23505" });
-		const err = new Error("Failed query");
-		(err as Error & { cause: unknown }).cause = cause;
+	it("detects a duplicate reported directly by D1", () => {
+		expect(isUniqueViolation(d1Error("UNIQUE constraint failed: signatures.email"))).toBe(true);
+	});
+
+	// The shape a query actually throws: the sign path (issue #4) catches this
+	// one, not the bare driver error.
+	it("detects a duplicate through Drizzle's wrapper", () => {
+		const err = drizzleWrapped(d1Error("UNIQUE constraint failed: signatures.email"));
+
 		expect(isUniqueViolation(err)).toBe(true);
 	});
 
-	it("returns false for other pg codes", () => {
-		const cause = Object.assign(new Error("fk violation"), { code: "23503" });
-		const err = new Error("Failed query");
-		(err as Error & { cause: unknown }).cause = cause;
-		expect(isUniqueViolation(err)).toBe(false);
+	it("returns false for a different constraint", () => {
+		expect(isUniqueViolation(d1Error("NOT NULL constraint failed: signatures.email"))).toBe(false);
 	});
 
-	it("returns false when cause is missing", () => {
-		expect(isUniqueViolation(new Error("plain"))).toBe(false);
+	it("returns false when nothing in the chain names a constraint", () => {
+		expect(isUniqueViolation(new Error("network"))).toBe(false);
 	});
 
 	it("returns false for non-Error inputs", () => {
 		expect(isUniqueViolation(null)).toBe(false);
 		expect(isUniqueViolation("oops")).toBe(false);
-		expect(isUniqueViolation({ code: "23505" })).toBe(false);
+		expect(isUniqueViolation({ message: "UNIQUE constraint failed" })).toBe(false);
 	});
 });

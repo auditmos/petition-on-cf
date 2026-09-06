@@ -1,1 +1,0 @@
-export { initDatabase } from "./setup";

@@ -5,7 +5,7 @@ describe("isApiRequest", () => {
 		["/api", true],
 		["/api/", true],
 		["/api/health/live", true],
-		["/api/clients/123", true],
+		["/api/signatures/123", true],
 		["/", false],
 		["/apidocs", false],
 		["/apinotmine", false],

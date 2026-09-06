@@ -23,7 +23,7 @@ describe("env template fan-out", () => {
 
 		beforeEach(() => {
 			root = mkdtempSync(join(tmpdir(), "init-project-"));
-			writeFileSync(join(root, ".dev.vars.example"), 'DATABASE_HOST=""\n');
+			writeFileSync(join(root, ".dev.vars.example"), 'TURNSTILE_SECRET_KEY=""\n');
 		});
 
 		afterEach(() => {
@@ -32,15 +32,15 @@ describe("env template fan-out", () => {
 
 		it("copies the template to a target that is not there yet", () => {
 			expect(fanoutEnv(".dev.vars.example", ".dev.vars", root)).toBe("copied");
-			expect(readFileSync(join(root, ".dev.vars"), "utf8")).toBe('DATABASE_HOST=""\n');
+			expect(readFileSync(join(root, ".dev.vars"), "utf8")).toBe('TURNSTILE_SECRET_KEY=""\n');
 		});
 
 		// The second run happens after someone has filled in real credentials.
 		it("leaves a filled-in target alone on a re-run", () => {
-			writeFileSync(join(root, ".dev.vars"), 'DATABASE_HOST="real"\n');
+			writeFileSync(join(root, ".dev.vars"), 'TURNSTILE_SECRET_KEY="real"\n');
 
 			expect(fanoutEnv(".dev.vars.example", ".dev.vars", root)).toBe("skipped");
-			expect(readFileSync(join(root, ".dev.vars"), "utf8")).toBe('DATABASE_HOST="real"\n');
+			expect(readFileSync(join(root, ".dev.vars"), "utf8")).toBe('TURNSTILE_SECRET_KEY="real"\n');
 		});
 
 		it("reports a missing template rather than writing an empty file", () => {

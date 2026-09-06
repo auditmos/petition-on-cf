@@ -1,6 +1,6 @@
 # petition-on-cf
 
-> Public petition site template on Cloudflare Workers — one deployment = one petition (150proc.pl-style): live signature counter (Durable Object + WebSocket hibernation), D1, Turnstile, PL/EN, Deploy to Cloudflare button. In development — the codebase is currently the inherited tstack-on-cf base; features land as dependency-ordered slice issues.
+> Public petition site template on Cloudflare Workers — one deployment = one petition (150proc.pl-style): live signature counter (Durable Object + WebSocket hibernation), D1, Turnstile, PL/EN, Deploy to Cloudflare button. In development — D1 persistence and the `signatures` schema have landed; the remaining features land as dependency-ordered slice issues.
 
 ## Planning (source of truth for what to build)
 
@@ -28,7 +28,7 @@
 ### db
 - [Drizzle ORM](.claude/rules/db/drizzle.md): Schema definitions, migrations, query patterns
 - [Zod Validation](.claude/rules/db/zod.md): Schema naming conventions, request/response patterns
-- [Neon Postgres](.claude/rules/db/neon.md): Serverless DB connection patterns — inherited from the base; replaced by D1 when issue #2 lands
+- [Cloudflare D1](.claude/rules/db/d1.md): Binding-per-query access, error unwrapping, migration and test workflow
 
 ### frontend
 - [TanStack](.claude/rules/frontend/tanstack.md): Router, Query, server functions, SSR patterns

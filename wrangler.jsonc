@@ -11,9 +11,29 @@
 	// (no .dev.vars inference), constrains which keys local dev loads, and makes
 	// `wrangler deploy` fail with a named list when one was never set.
 	// NOT inherited by env blocks — must be repeated in each one.
+	//
+	// Empty on purpose: D1 is a binding, so persistence needs no credentials,
+	// and this template sends no e-mail and calls no third party. The first
+	// entry will be the Turnstile secret key (issue #6).
 	"secrets": {
-		"required": ["DATABASE_HOST", "DATABASE_USERNAME", "DATABASE_PASSWORD"]
+		"required": []
 	},
+	// The single source of truth. `migrations_dir` is the directory the matching
+	// drizzle-<env>.config.ts writes to, so `db:generate:<env>` and
+	// `db:migrate:<env>` cannot drift apart — src/wrangler-config.test.ts holds
+	// the two together.
+	//
+	// `database_id` is a placeholder here and in every env below. Create the
+	// real databases with `wrangler d1 create <name>` and paste the ids in;
+	// local development never reads it.
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "petition-dev",
+			"database_id": "00000000-0000-0000-0000-000000000000",
+			"migrations_dir": "src/db/migrations/dev"
+		}
+	],
 	"observability": {
 		"enabled": true,
 		"logs": { "head_sampling_rate": 1 },
@@ -39,8 +59,16 @@
 			"name": "tanstack-start-app-staging",
 			"vars": { "CLOUDFLARE_ENV": "staging" },
 			"secrets": {
-				"required": ["DATABASE_HOST", "DATABASE_USERNAME", "DATABASE_PASSWORD"]
+				"required": []
 			},
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "petition-staging",
+					"database_id": "00000000-0000-0000-0000-000000000000",
+					"migrations_dir": "src/db/migrations/staging"
+				}
+			],
 			// Reachable at the workers.dev subdomain, with preview URLs on, so a
 			// change can be looked at before it is promoted.
 			"workers_dev": true,
@@ -54,13 +82,21 @@
 			"name": "tanstack-start-app-production",
 			"vars": { "CLOUDFLARE_ENV": "production" },
 			"secrets": {
-				"required": ["DATABASE_HOST", "DATABASE_USERNAME", "DATABASE_PASSWORD"]
+				"required": []
 			},
-			// Off, on purpose: the demo API is public unauthenticated CRUD, and a
-			// workers.dev URL is guessable. Production is therefore NOT reachable
-			// until you fill in the custom domain below — that is the forcing
-			// function, not a broken deploy. Flip these to true if you genuinely
-			// want the subdomain.
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "petition-production",
+					"database_id": "00000000-0000-0000-0000-000000000000",
+					"migrations_dir": "src/db/migrations/production"
+				}
+			],
+			// Off, on purpose. A petition collects names, e-mail addresses and
+			// consents under one campaign's identity; a guessable second URL
+			// serving the same form collects them under no identity at all. The
+			// custom domain below is therefore the forcing function, not a broken
+			// deploy. Flip these to true if you genuinely want the subdomain.
 			"workers_dev": false,
 			"preview_urls": false
 			// "routes": [{ "pattern": "app.example.com", "custom_domain": true }]

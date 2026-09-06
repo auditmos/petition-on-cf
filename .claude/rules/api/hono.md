@@ -47,19 +47,19 @@ If `@hono/zod-validator` is not yet installed, use `safeParse` from `@/db/{domai
 ```ts
 // Best — zValidator (when available)
 import { zValidator } from '@hono/zod-validator'
-import { ClientCreateSchema, ClientIdParamSchema } from '@/db/client'
+import { SignatureCreateSchema } from '@/db/signatures'
 
-app.post('/clients',
-  zValidator('json', ClientCreateSchema),
+app.post('/signatures',
+  zValidator('json', SignatureCreateSchema),
   async (c) => {
     const data = c.req.valid('json') // typed!
   }
 )
 
 // Acceptable — safeParse with named schema
-import { clientCreateSchema } from '@/db/client'
+import { SignatureCreateSchema } from '@/db/signatures'
 
-const result = clientCreateSchema.safeParse(await c.req.json())
+const result = SignatureCreateSchema.safeParse(await c.req.json())
 if (!result.success) return c.json({ error: 'Validation failed' }, 400)
 ```
 

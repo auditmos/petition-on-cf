@@ -19,8 +19,12 @@ Durable decisions every slice must respect (full list in the plan header):
 
 ## Current state
 
-- Database is still **Neon Postgres** from the tstack-on-cf base — issue #2 swaps it to **Cloudflare D1** and deletes the demo `clients` domain. Until then, `db:*` scripts expect Neon credentials.
-- No petition feature is implemented yet; the issues define the build order.
+Issue #2 has landed: persistence is **Cloudflare D1**, the demo `clients` domain and the Neon driver are gone, and the landing page SSR-renders the signature count from the `signatures` table.
+
+- `getDb(binding)` in `src/db/setup.ts` is the only module that imports a driver (`src/db/driver-boundary.test.ts` enforces it). Queries take the `D1Database` binding as a parameter — there is no singleton and no `initDatabase()`.
+- The local loop needs no credentials: `pnpm run db:migrate:dev` creates and migrates a local D1.
+- `wrangler.jsonc` ships all-zero placeholder `database_id` values for every environment; real ones come from `wrangler d1 create`.
+- No signature form or write path yet — issue #4. The remaining issues define the build order.
 
 ## Stack
 
@@ -29,7 +33,7 @@ Durable decisions every slice must respect (full list in the plan header):
 | Framework | TanStack Start (Router + Query + SSR) |
 | API | Hono on Cloudflare Workers |
 | Runtime | Cloudflare Workers |
-| Database | Neon Postgres + Drizzle — migrating to Cloudflare D1 (issue #2) |
+| Database | Cloudflare D1 (SQLite) + Drizzle |
 | Live updates | Durable Object + WebSocket hibernation (issue #7, planned) |
 | Bot protection | Cloudflare Turnstile (issue #6, planned) |
 | Styling | Tailwind CSS v4, Shadcn (new-york, Zinc, CSS vars) |
@@ -43,6 +47,8 @@ Durable decisions every slice must respect (full list in the plan header):
 - `src/components/` — reusable React components
 - `src/components/ui/` — Shadcn primitives (do not edit manually)
 - `src/hono/` — Hono API routes and factory
+- `src/db/` — one directory per domain (`table.ts`, `queries.ts`, `index.ts`); `schema.ts` is what drizzle-kit reads
+- `src/core/functions/` — TanStack server functions (server-only reads for route loaders)
 - `src/server.ts` — custom CF Workers entry (routes `/api/*` → Hono, rest → TanStack)
 - `src/integrations/tanstack-query/` — query client setup and providers
 - `plans/` — phased implementation plan (source of truth for slice scope)
@@ -66,18 +72,17 @@ pnpm deps                 # check for updates
 pnpm deps:update          # apply minor updates
 pnpx shadcn@latest add <component>  # add Shadcn component
 
-# Database (per-environment; still Neon-backed until issue #2 lands)
-pnpm db:generate:dev      # generate migrations (dev)
+# Database — Drizzle generates SQL, Wrangler applies it to D1
+pnpm db:generate:dev      # generate migrations from src/db/schema.ts (dev)
 pnpm db:generate:staging  # generate migrations (staging)
 pnpm db:generate:production # generate migrations (production)
-pnpm db:migrate:dev       # apply migrations (dev)
-pnpm db:migrate:staging   # apply migrations (staging)
-pnpm db:migrate:production # apply migrations (production)
-pnpm db:pull:dev          # pull schema from DB (dev)
-pnpm db:seed:dev          # seed sample data (dev)
-pnpm db:seed:staging      # seed sample data (staging)
-pnpm db:seed:production   # seed sample data (production)
-pnpm db:studio            # Drizzle Studio (dev)
+pnpm db:migrate:dev       # apply migrations to the local D1
+pnpm db:migrate:staging   # apply migrations to the remote staging D1
+pnpm db:migrate:production # apply migrations to the remote production D1
+pnpm db:list:dev          # which migrations the local D1 still needs
+
+# Read or write the local database directly (also how you seed a row)
+pnpm exec wrangler d1 execute DB --local --command "SELECT count(*) FROM signatures"
 ```
 
 ## Architecture

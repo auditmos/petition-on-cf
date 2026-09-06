@@ -43,12 +43,15 @@ const WRANGLER_FILES = ["wrangler.jsonc"];
 const REQUIRED_WRANGLER_ENVS = ["staging", "production"];
 
 const NEXT_STEPS = [
-	"Fill DB credentials in .dev.vars / .staging.vars / .production.vars",
-	"  Get from https://console.neon.tech (DATABASE_HOST/USERNAME/PASSWORD).",
+	"Apply migrations to the local D1: pnpm run db:migrate:dev",
+	"  No credentials needed — the local database is created on the spot.",
+	"Start dev: pnpm run dev",
+	"",
+	"Before deploying:",
+	"  Create the databases: wrangler d1 create <name> (once per environment)",
+	"  Paste each id over the all-zero database_id placeholders in wrangler.jsonc.",
 	"(optional) Set CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN in .env",
 	"  or run `wrangler login` instead.",
-	"Run migrations: pnpm run db:generate:dev && pnpm run db:migrate:dev",
-	"Start dev: pnpm run dev",
 ];
 
 // ── helpers ──────────────────────────────────────────────────────────

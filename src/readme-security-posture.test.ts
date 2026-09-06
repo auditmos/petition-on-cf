@@ -11,12 +11,18 @@ describe("README security posture section", () => {
 		expect(section).toBeDefined();
 	});
 
-	// The demo API is public unauthenticated create-read-update-delete. That is
-	// acceptable for a template only while it is stated loudly enough that nobody
-	// deploys it without noticing.
-	it("states the demo API is intentionally unauthenticated and must not ship as-is", () => {
-		expect(section).toMatch(/unauthenticated/i);
-		expect(section).toMatch(/must not ship as-is/i);
+	// "No auth" is a decision here, not an omission: the site is public and the
+	// organizer reads their data with the Wrangler CLI. Stated plainly, because
+	// a reader who assumes an admin panel exists goes looking for its password.
+	it("states that having no authenticated surface is deliberate", () => {
+		expect(section).toMatch(/no auth/i);
+		expect(section).toMatch(/by design|deliberate|on purpose/i);
+	});
+
+	// The claim that replaces an admin panel. If the README stops naming the
+	// mechanism, "no auth surface" reads as an oversight rather than a trade.
+	it("names how an organizer reaches their own data instead", () => {
+		expect(section).toMatch(/wrangler d1/);
 	});
 
 	// A pointer at the seam is only useful while it resolves. A file that no
@@ -35,5 +41,12 @@ describe("README security posture section", () => {
 		expect(section).toMatch(/before (you )?deploy/i);
 		const steps = (section ?? "").split("\n").filter((l) => /^\s*(-|\d+\.)\s/.test(l));
 		expect(steps.length).toBeGreaterThanOrEqual(2);
+	});
+
+	// The placeholder database ids are the one deploy-time footgun this slice
+	// ships: they are syntactically valid, so a deploy that never replaced them
+	// fails at the first query rather than at the first command.
+	it("warns that the shipped database ids are placeholders", () => {
+		expect(section).toMatch(/database_id|placeholder/i);
 	});
 });

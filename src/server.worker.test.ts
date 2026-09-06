@@ -16,7 +16,7 @@ describe("Worker entry dispatch", () => {
 	// application would ever be reachable again.
 	it.each([
 		"/",
-		"/clients",
+		"/nie-ma-takiej-strony",
 		"/apidocs",
 		"/apinotmine",
 	])("hands %s to the application handler", async (path) => {

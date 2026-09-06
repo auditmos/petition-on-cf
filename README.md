@@ -4,7 +4,7 @@
 
 A **template for running a public petition site** on Cloudflare Workers — one deployment = one petition, modeled on the excellent UX of [150proc.pl](https://150proc.pl/): hero → evidence with cited sources → mechanism → signature form → live counter and Poland map → public supporters list → share → FAQ.
 
-> **Status: in development.** Planning is complete; implementation is landing as vertical slices. The codebase is currently the inherited [tstack-on-cf](https://github.com/auditmos/tstack-on-cf) base — see [Current state](#current-state) before running anything.
+> **Status: in development.** Planning is complete; implementation is landing as vertical slices. The persistence layer and the `signatures` schema are in place; the signature form is not — see [Current state](#current-state) before running anything.
 
 ## What this template delivers (when complete)
 
@@ -40,7 +40,7 @@ Implementation is dispatched as dependency-ordered tracer-bullet slices — each
 
 | Issue | Slice | Status |
 |---|---|---|
-| [#2](https://github.com/auditmos/petition-on-cf/issues/2) | D1 walking skeleton (Neon → D1, demo cleanup, `signatures` schema) | planned |
+| [#2](https://github.com/auditmos/petition-on-cf/issues/2) | D1 walking skeleton (Neon → D1, demo cleanup, `signatures` schema) | **landed** |
 | [#3](https://github.com/auditmos/petition-on-cf/issues/3) | Legal text capture from 150proc.pl (verbatim fixtures) — HITL | planned |
 | [#4](https://github.com/auditmos/petition-on-cf/issues/4) | Minimal sign path | planned |
 | [#5](https://github.com/auditmos/petition-on-cf/issues/5) | Content module + PL/EN routing | planned |
@@ -55,35 +55,67 @@ Implementation is dispatched as dependency-ordered tracer-bullet slices — each
 
 ## Current state
 
-The repo was generated from [tstack-on-cf](https://github.com/auditmos/tstack-on-cf) (TanStack Start + Hono on Workers, Drizzle, Zod, Shadcn/UI, Biome + Vitest + knip) and the code is still that base:
+The repo was generated from [tstack-on-cf](https://github.com/auditmos/tstack-on-cf) (TanStack Start + Hono on Workers, Drizzle, Zod, Shadcn/UI, Biome + Vitest + knip). The first slice has landed on top of it:
 
-- The database is still **Neon Postgres** — issue [#2](https://github.com/auditmos/petition-on-cf/issues/2) swaps it to **Cloudflare D1** and removes the demo `clients` domain. Until then, the dev loop (`db:*` scripts, `.dev.vars`) expects Neon credentials exactly as documented in the [upstream README](https://github.com/auditmos/tstack-on-cf#readme).
-- No petition feature exists yet; the roadmap above is the build order.
+- **Persistence is Cloudflare D1**, reached through Drizzle's SQLite driver behind `src/db/setup.ts`. The `signatures` table ships as a migration, and the landing page server-renders the total count from it — the number is in the first byte of HTML, not fetched afterwards.
+- **The demo `clients` domain is gone**, along with the Neon driver, its three credentials, and the seed script.
+- **No signature form yet.** The count is read-only until issue [#4](https://github.com/auditmos/petition-on-cf/issues/4); everything else on the roadmap above is still ahead.
 
 ### Working on this repo
+
+The local loop needs no Cloudflare account and no credentials — D1 runs on your machine.
 
 ```bash
 pnpm install
 pnpm cf-typegen
-pnpm dev            # port 3000 — upstream base app until slices land
+pnpm run db:migrate:dev   # applies migrations to the local D1
+pnpm dev                  # port 3000
+```
+
+Read or write the local database directly with Wrangler — this is also how you seed a row to watch the counter move:
+
+```bash
+pnpm exec wrangler d1 execute DB --local --command "SELECT count(*) FROM signatures"
 ```
 
 Before declaring any change done: `pnpm lint && pnpm types && pnpm test && pnpm knip`.
 
-Base-stack documentation (scripts, testing projects, deploy runbook, error handling, secrets) lives in the [upstream README](https://github.com/auditmos/tstack-on-cf#readme) and stays accurate until the corresponding slices rewrite this repo — this README will grow the template's own quick start as features land (issue #13 finalizes it).
+#### Migration directories
+
+Drizzle generates the SQL (`pnpm db:generate:<env>`); Wrangler applies it (`pnpm db:migrate:<env>`). Each environment's `migrations_dir` in `wrangler.jsonc` points at the directory its own generator writes to.
+
+| Environment | Directory | Status |
+| --- | --- | --- |
+| `dev` | `src/db/migrations/dev` | In the repository |
+| `staging` | `src/db/migrations/staging` | Created by `pnpm db:generate:staging` |
+| `production` | `src/db/migrations/production` | Created by `pnpm db:generate:production` |
+
+#### Deploying to a real database
+
+`wrangler.jsonc` ships an all-zero placeholder `database_id` for every environment. Create the databases and paste the real ids in before deploying:
+
+```bash
+pnpm exec wrangler d1 create petition-staging
+pnpm run db:generate:staging
+pnpm run db:migrate:staging
+pnpm run deploy:staging
+```
+
+Automating this into the Deploy to Cloudflare button is issue [#13](https://github.com/auditmos/petition-on-cf/issues/13).
+
+Base-stack documentation (testing projects, deploy runbook, error handling) lives in the [upstream README](https://github.com/auditmos/tstack-on-cf#readme) and stays accurate where the slices have not rewritten this repo — this README grows the template's own quick start as features land (issue #13 finalizes it).
 
 ## Security posture
 
-The inherited base ships a demo `clients` CRUD endpoint at `/api/clients`. It is **intentionally unauthenticated** — it exists to demonstrate the endpoint shape — and it **must not ship as-is**. Issue [#2](https://github.com/auditmos/petition-on-cf/issues/2) deletes it alongside the Neon → D1 swap; until that lands it is reachable in any deploy of this repo.
+This template has **no auth surface, by design**. The petition site is entirely public, and an organizer reaches their own data with `wrangler d1` export queries from their machine rather than through a protected endpoint — so there is no admin panel, no account, and no password to leak. The only API today is `/api/health/live` and `/api/health/ready`, which return status and no signer data.
 
-Authentication attaches at `src/hono/factory.ts`. `createHono(...middleware)` accepts `ApiMiddleware` handlers and applies them to every route of the endpoint it builds, so a guard added there covers the whole surface instead of one handler.
-
-The finished template has **no auth surface by design**: the petition site is entirely public, and organizer data access is documented `wrangler d1` export queries rather than a protected endpoint. That decision is about the petition API — it is not a reason to leave the inherited demo CRUD exposed.
+That is a decision about what to build, not a claim that nothing needs guarding. Authentication attaches at `src/hono/factory.ts`: `createHono(...middleware)` accepts `ApiMiddleware` handlers and applies them to every route of the endpoint it builds, so a guard added there covers the whole surface instead of one handler. If you add an endpoint this template does not have, that is where it goes.
 
 Before you deploy:
 
-- Remove the demo `clients` domain (or land issue #2) so no unauthenticated write path remains.
-- Replace the Turnstile defaults with real keys — the shipped values are Cloudflare's always-pass test keys and accept every submission.
+- Replace the placeholder `database_id` values in `wrangler.jsonc` with real ones from `wrangler d1 create`. They are all-zero and syntactically valid, so a deploy that skips this step succeeds and then fails on the first query.
+- Keep production off the workers.dev subdomain — it ships off, and a custom domain is the intended way to reach it. A guessable second URL serving the same form collects signatures under no campaign identity at all.
+- Replace the Turnstile defaults with real keys once issue [#6](https://github.com/auditmos/petition-on-cf/issues/6) lands — the shipped values will be Cloudflare's always-pass test keys, which accept every submission.
 - Review the legal texts against your campaign; responsibility for their sufficiency rests with the organizer.
 
 ## Planning artifacts

@@ -1,11 +1,27 @@
 import { resolve } from "node:path";
-import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
+import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-workers";
 import { defineConfig } from "vitest/config";
 
 const alias = { "@": resolve(import.meta.dirname, "src") };
 
-/** Anything ending `.worker.test.ts` runs in workerd; everything else in Node. */
-const WORKER_TESTS = "src/**/*.worker.test.ts";
+/**
+ * The migrations Wrangler would apply, read off disk rather than restated.
+ *
+ * Storage is isolated per test, so a Workers test that needs the schema applies
+ * these itself with `applyD1Migrations` — which means the thing under test is
+ * the migration that ships, and a schema change with no migration behind it
+ * fails here rather than after a deploy.
+ */
+const D1_MIGRATIONS = await readD1Migrations(resolve(import.meta.dirname, "src/db/migrations/dev"));
+
+/**
+ * Anything ending `.worker.test.ts(x)` runs in workerd; everything else in Node.
+ *
+ * The `.tsx` half is not a component test that wandered in: a Worker renders
+ * React on the server, so proving that a D1 count reaches the markup needs both
+ * the runtime's bindings and JSX in the same file.
+ */
+const WORKER_TESTS = "src/**/*.worker.test.{ts,tsx}";
 
 /** A `.tsx` test renders something, so it gets a DOM. */
 const COMPONENT_TESTS = "src/**/*.test.tsx";
@@ -58,7 +74,7 @@ export default defineConfig({
 					environment: "jsdom",
 					setupFiles: ["./src/dom-shims.ts"],
 					include: [COMPONENT_TESTS],
-					exclude: ["src/routes/**"],
+					exclude: ["src/routes/**", WORKER_TESTS],
 				},
 			},
 			// The real thing: workerd, the bindings from wrangler.jsonc, and the
@@ -69,14 +85,10 @@ export default defineConfig({
 					cloudflareTest({
 						wrangler: { configPath: "./wrangler.jsonc" },
 						miniflare: {
-							// The Worker's secrets are real credentials, so tests get
-							// syntactically valid stand-ins instead: enough for the Neon
-							// client to construct, never enough to reach a database.
-							bindings: {
-								DATABASE_HOST: "db.test.invalid/testdb?sslmode=require",
-								DATABASE_USERNAME: "test",
-								DATABASE_PASSWORD: "test",
-							},
+							// Not a binding the Worker has — a test fixture, delivered the
+							// only way a Node-side value can reach workerd. The D1 binding
+							// itself comes from wrangler.jsonc, as a real local database.
+							bindings: { TEST_MIGRATIONS: D1_MIGRATIONS },
 						},
 					}),
 				],

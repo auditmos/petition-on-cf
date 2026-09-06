@@ -30,7 +30,8 @@ it. What compensates for the missing automation is:
 - **The deploy-time secret check** described under
   [Once per environment: secrets](#once-per-environment-secrets). It is the one
   automated gate that stands between a release and a Worker that deploys
-  successfully and then fails every request.
+  successfully and then fails every request — dormant while the required list is
+  empty, and back in force the moment issue #6 adds the Turnstile secret.
 
 ## Why the migration gate is deliberate
 
@@ -54,38 +55,45 @@ needs it never ship together; that pairing is what makes a rollback impossible.
 If you cannot split the change that way, deploy code that tolerates both
 schemas, migrate, then remove the tolerance in a third release.
 
+## Once per environment: the database
+
+Persistence is a binding, not a credential. Create the database once per
+environment and paste its id into the matching `d1_databases` entry in
+`wrangler.jsonc` — the file ships an all-zero placeholder, which is
+syntactically valid and therefore deploys quite happily against nothing:
+
+```bash
+wrangler d1 create petition-staging
+```
+
+`src/wrangler-config.test.ts` fails the build if an environment loses its
+binding, or if its `migrations_dir` stops matching what
+`drizzle-<env>.config.ts` generates into.
+
 ## Once per environment: secrets
 
 `wrangler.jsonc` is the source of truth for which secrets the Worker requires:
 
 ```jsonc
 "secrets": {
-  "required": ["DATABASE_HOST", "DATABASE_USERNAME", "DATABASE_PASSWORD"]
+  "required": []
 }
 ```
 
+Empty today, and stated rather than omitted: D1 needs no credentials, and this
+template calls no third party. The first entry will be the Turnstile secret key
+(issue #6).
+
 This block is **not inherited** by environment blocks — `env.staging` and
 `env.production` each repeat it, and `src/secrets-contract.test.ts` fails the
-build if they drift apart.
-
-Push the values to Cloudflare once per environment:
-
-```bash
-wrangler secret put DATABASE_HOST     --env staging
-wrangler secret put DATABASE_USERNAME --env staging
-wrangler secret put DATABASE_PASSWORD --env staging
-```
+build if they drift apart. Push a value with `wrangler secret put <NAME> --env
+staging` once there is one to push.
 
 **`wrangler deploy` refuses to ship when a declared secret was never set on the
 Worker, and names the ones that are missing.** That check is the safety net this
 runbook leans on hardest: without it, a forgotten secret produces a deploy that
-reports success and a Worker that returns 500 on every request that touches the
-database. With it, the release stops before it starts.
-
-Separately, create `.staging.vars` and `.production.vars` locally with the same
-keys. Those are read by `dotenvx` for the `db:*` scripts — migrations run from
-your machine against the database directly, not through the Worker. They are
-gitignored; see `.dev.vars.example` for the shape.
+reports success and a Worker that returns 500 on every request that needs it.
+With it, the release stops before it starts.
 
 ## The sequence
 
@@ -167,7 +175,7 @@ curl -sS https://<host>/api/health/ready
 {
   "status": "ok",
   "env": "staging",
-  "service": "tstack-on-cf",
+  "service": "petition-on-cf",
   "time": "2026-08-08T05:00:00.000Z",
   "database": "connected"
 }
@@ -176,9 +184,10 @@ curl -sS https://<host>/api/health/ready
 - `env` is the build's own idea of which environment it is. If it disagrees with
   the host you called, you deployed the wrong bundle — the most likely cause is
   a `deploy:*` run without its matching `build:*`.
-- `database` proves the secrets reached the Worker and the connection works. A
+- `database` proves the D1 binding reached the Worker and answers a query. A
   `degraded` status with `disconnected` returns HTTP 503 and means the Worker is
-  running but its credentials or database are not.
+  running but its binding points at a database that is not — the usual cause is
+  a `database_id` still holding the shipped placeholder.
 - `time` moving between calls proves you are not reading a cached response.
 
 Then confirm what Cloudflare thinks is live, and watch real traffic:

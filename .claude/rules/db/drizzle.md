@@ -7,18 +7,31 @@ paths:
 
 ## Schema Definition
 
-- Use `pgTable()` with explicit column types
-- Define tables in `{domain}/table.ts`
-- Define relations in separate `drizzle/relations.ts`
-- Never edit auto-generated files
+- Use `sqliteTable()` with explicit column types — the database is D1, which is
+  SQLite. `pgTable()` will type-check against a Postgres driver this project
+  does not have.
+- Define tables in `{domain}/table.ts`, and export them from `src/db/schema.ts`
+  so `drizzle-kit generate` sees them.
+- Never edit auto-generated files.
 
 ```ts
-export const users = pgTable('users', {
-  id: text('id').primaryKey(),
+import { sql } from 'drizzle-orm'
+import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
+
+export const users = sqliteTable('users', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   email: text('email').notNull().unique(),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  active: integer('active', { mode: 'boolean' }).notNull().default(false),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
 })
 ```
+
+SQLite has no UUID, boolean, or timestamp type. The conventions above are the
+ones `src/db/signatures/table.ts` documents and the rest of the schema follows:
+UUID text ids, integer booleans defaulted to `0`, Unix-seconds timestamps
+defaulted by the database rather than by the Worker's clock.
 
 ## Type Inference
 
@@ -56,8 +69,8 @@ const user = await db.query.users.findFirst({
 - Never manually edit generated migration files
 - Per-environment configs: `drizzle-dev.config.ts`, `drizzle-staging.config.ts`, `drizzle-production.config.ts`
 - Per-environment migration dirs: `src/db/migrations/{dev,staging,production}/`
-- Run `pnpm db:generate:dev` then `pnpm db:migrate:dev` (or `:staging` / `:production`)
-- Test migrations on dev/staging before production
+- Generation needs no credentials; application goes through Wrangler. See
+  `.claude/rules/db/d1.md`.
 
 ## Domain Module Pattern
 
@@ -65,7 +78,7 @@ Place queries in `{domain}/queries.ts`, export from `{domain}/index.ts`:
 
 ```
 src/db/{domain}/
-├── table.ts      # pgTable definition
+├── table.ts      # sqliteTable definition
 ├── schema.ts     # Zod validation schemas
 ├── queries.ts    # All DB operations
 └── index.ts      # Public API (re-exports)
@@ -73,6 +86,7 @@ src/db/{domain}/
 
 ## Query Layer
 
-- All queries call `getDb()` — never accept DB as parameter
+- Every query takes the `D1Database` binding and passes it to `getDb()` — see
+  `.claude/rules/db/d1.md` for why the binding is a parameter rather than a
+  module singleton
 - Return typed results
-- Use `.returning()` on mutations to avoid extra round trips

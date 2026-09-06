@@ -9,22 +9,25 @@ paths:
 ## Worker Entry
 
 - ES module syntax with default export
-- Initialize resources (DB) in fetch handler
+- Dispatch only — bindings reach handlers through `c.env`, so the entry point
+  has nothing to initialise
 - Route `/api/*` → Hono, rest → TanStack Start
 
 ```ts
 // src/server.ts
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    initDatabase({ host: env.DATABASE_HOST, ... })
     const url = new URL(request.url)
-    if (url.pathname.startsWith('/api')) {
+    if (isApiRequest(url.pathname)) {
       return honoApp.fetch(request, env)
     }
     return tanstackHandler(request)
   }
 }
 ```
+
+`startsWith('/api')` would swallow `/apidocs` and `/apinotmine`. Use an explicit
+predicate — `src/server.worker.test.ts` covers exactly those paths.
 
 ## Env Bindings
 

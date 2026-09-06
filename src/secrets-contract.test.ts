@@ -37,9 +37,12 @@ describe("secrets contract", () => {
 	const config = loadWranglerConfig();
 	const exampleKeys = loadEnvKeys(EXAMPLE_VARS);
 
-	it("declares required secret names in wrangler.jsonc", () => {
-		expect(config.secrets?.required).toBeDefined();
-		expect(config.secrets?.required?.length).toBeGreaterThan(0);
+	// Stated even while it is empty. This template reaches no third party and
+	// stores its data in a binding, so there is currently nothing to put here —
+	// and an absent block would look like the question was never asked. The
+	// first entry will be the Turnstile secret key (issue #6).
+	it("declares the secrets contract in wrangler.jsonc", () => {
+		expect(config.secrets?.required).toBeInstanceOf(Array);
 	});
 
 	it("declares every required secret in the example vars template", () => {

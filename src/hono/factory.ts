@@ -21,13 +21,14 @@ export type ApiMiddleware = MiddlewareHandler<{ Bindings: Env }>;
  *   await next();
  * };
  *
- * const clientsEndpoint = createHono(requireApiKey);
+ * const reportsEndpoint = createHono(requireApiKey);
  * ```
  *
- * This template ships **no** middleware attached: the demo API is deliberately
- * public unauthenticated CRUD, and a token check here would be mistaken for
- * something production-grade. See the README's "Security posture" section for
- * what to do before deploying.
+ * This template ships **no** middleware attached, and needs none: the petition
+ * site is entirely public and an organizer reads their own data with `wrangler
+ * d1` rather than through a protected endpoint. The seam exists for the
+ * endpoint this template does not have. See the README's "Security posture"
+ * section.
  */
 export const createHono = (...middleware: ApiMiddleware[]) => {
 	const endpoint = new Hono<{ Bindings: Env }>();

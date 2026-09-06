@@ -17,6 +17,13 @@ function loadJsonc(path: string): Record<string, unknown> {
 /** Deployed environments, as opposed to the top-level block that dev uses. */
 const DEPLOYED_ENVS = ["staging", "production"] as const;
 
+type D1Binding = {
+	binding?: string;
+	database_name?: string;
+	database_id?: string;
+	migrations_dir?: string;
+};
+
 type EnvBlock = {
 	name?: string;
 	vars?: Record<string, string>;
@@ -24,7 +31,11 @@ type EnvBlock = {
 	preview_urls?: boolean;
 	upload_source_maps?: boolean;
 	routes?: unknown[];
+	d1_databases?: D1Binding[];
 };
+
+/** Every environment that gets its own block, dev included. */
+const ALL_ENVS = ["dev", ...DEPLOYED_ENVS] as const;
 
 describe("wrangler.jsonc", () => {
 	const config = loadJsonc(WRANGLER) as EnvBlock & {
@@ -37,12 +48,6 @@ describe("wrangler.jsonc", () => {
 		};
 		env?: Record<string, EnvBlock | undefined>;
 	};
-
-	it("does not declare database credentials in vars (use secrets)", () => {
-		expect(config.vars?.DATABASE_HOST).toBeUndefined();
-		expect(config.vars?.DATABASE_USERNAME).toBeUndefined();
-		expect(config.vars?.DATABASE_PASSWORD).toBeUndefined();
-	});
 
 	it("compatibility_date is within 90 days", () => {
 		expect(config.compatibility_date).toBeDefined();
@@ -90,8 +95,11 @@ describe("wrangler.jsonc", () => {
 		expect(typeof config.env?.[env]?.preview_urls).toBe("boolean");
 	});
 
-	// The demo API is public unauthenticated CRUD, so production reachable at a
-	// guessable workers.dev URL is the one default worth overriding outright.
+	// A petition collects names, e-mail addresses and consents under one
+	// campaign's identity. A guessable second URL serving the same form collects
+	// them under no identity at all, which is the one default worth overriding
+	// outright — the custom domain becomes a precondition rather than a polish
+	// step.
 	it("keeps production off the workers.dev subdomain", () => {
 		expect(config.env?.production?.workers_dev).toBe(false);
 		expect(config.env?.production?.preview_urls).toBe(false);
@@ -168,5 +176,52 @@ describe("package.json deploy scripts", () => {
 	it.each(DEPLOYED_ENVS)("deploys %s from the build it just made", (env) => {
 		expect(pkg.scripts[`deploy:${env}`]).toMatch(new RegExp(`build:${env}`));
 		expect(pkg.scripts[`deploy:${env}`]).toMatch(/wrangler deploy/);
+	});
+});
+
+// D1 is the single source of truth for signatures, and `migrations_dir` is the
+// only thing tying `pnpm db:generate:<env>` to `pnpm db:migrate:<env>`. Nothing
+// fails loudly when those drift: generation writes SQL somewhere Wrangler never
+// looks, the apply reports "no migrations to apply", and the deploy is green
+// with a table that was never created.
+describe("wrangler.jsonc D1 bindings", () => {
+	const config = loadJsonc(WRANGLER) as EnvBlock & { env?: Record<string, EnvBlock | undefined> };
+
+	/** The block a given environment resolves to; dev is the top level. */
+	function blockFor(env: (typeof ALL_ENVS)[number]): EnvBlock | undefined {
+		return env === "dev" ? config : config.env?.[env];
+	}
+
+	/** Where `drizzle-<env>.config.ts` writes its migrations. */
+	function generatorOutput(env: string): string {
+		const source = readFileSync(resolve(ROOT, `drizzle-${env}.config.ts`), "utf8");
+		const out = source.match(/out:\s*"\.\/([^"]+)"/)?.[1];
+		if (!out) throw new Error(`drizzle-${env}.config.ts declares no out directory`);
+		return out;
+	}
+
+	it.each(ALL_ENVS)("binds one database as DB in %s", (env) => {
+		const bindings = blockFor(env)?.d1_databases;
+		expect(bindings?.map((d) => d.binding)).toEqual(["DB"]);
+	});
+
+	it.each(ALL_ENVS)("points %s at the directory its generator writes to", (env) => {
+		expect(blockFor(env)?.d1_databases?.[0]?.migrations_dir).toBe(generatorOutput(env));
+	});
+
+	// Bindings are not inherited from the top level, and a staging Worker that
+	// silently fell back to the dev database would look like it was working.
+	it("gives every environment its own database", () => {
+		const names = ALL_ENVS.map((env) => blockFor(env)?.d1_databases?.[0]?.database_name);
+		expect(new Set(names).size).toBe(ALL_ENVS.length);
+	});
+
+	// The ids are placeholders a cloner replaces after `wrangler d1 create`. That
+	// is only safe while it is obvious — a plausible-looking id would be pasted
+	// over by nobody and deployed by everybody.
+	it("ships ids that cannot be mistaken for real ones", () => {
+		for (const env of ALL_ENVS) {
+			expect(blockFor(env)?.d1_databases?.[0]?.database_id).toMatch(/^0{8}-0{4}-0{4}-0{4}-0{12}$/);
+		}
 	});
 });

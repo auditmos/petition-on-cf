@@ -28,10 +28,10 @@ function prose(markdown: string): string {
  *
  * Excluded, in order: commands and prose fragments (whitespace), globs and
  * placeholders (`src/routes/**`, `drizzle-{env}.config.ts`) which describe a
- * shape rather than a file, URL routes (`/api/clients`) whose leading slash
- * makes them request paths rather than repository paths, npm package names
- * (`@dotenvx/dotenvx`), and identifier lists (`DATABASE_HOST/USERNAME/PASSWORD`)
- * which borrow the slash as a separator.
+ * shape rather than a file, URL routes (`/api/health/ready`) whose leading
+ * slash makes them request paths rather than repository paths, npm package
+ * names (`@tanstack/react-start`), and identifier lists
+ * (`CLOUDFLARE_ACCOUNT_ID/API_TOKEN`) which borrow the slash as a separator.
  */
 function codeSpanPointers(text: string): string[] {
 	return [...text.matchAll(/`([^`\n]+)`/g)]

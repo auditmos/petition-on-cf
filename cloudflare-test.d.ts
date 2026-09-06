@@ -1,8 +1,7 @@
 /// <reference types="@cloudflare/vitest-pool-workers/types" />
 
-// Types the `env` that `cloudflare:test` hands to a `*.worker.test.ts` file as
-// the Worker's own bindings, so a test reaching for a binding the Worker does
-// not declare is a type error rather than a runtime undefined.
-declare module "cloudflare:test" {
-	interface ProvidedEnv extends Env {}
-}
+// The pool types `env` as `Cloudflare.Env`, so a `*.worker.test.ts` reaching
+// for a binding the Worker does not declare is already a type error and no
+// augmentation is needed here. Test-only fixtures are deliberately kept off
+// that interface — see `src/db/test-support.ts` for where they are read.
+export type {};
