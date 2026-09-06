@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/auditmos/petition-on-cf/compare/v1.2.0...v1.3.0) (2026-09-06)
+
+
+### Features
+
+* **legal:** make the signer-type noun a deployment choice ([6d3bb21](https://github.com/auditmos/petition-on-cf/commit/6d3bb219cd879e688214bd751c305b5d0bef9d8a)), closes [#3](https://github.com/auditmos/petition-on-cf/issues/3)
+
 # [1.2.0](https://github.com/auditmos/petition-on-cf/compare/v1.1.0...v1.2.0) (2026-09-06)
 
 
