@@ -3,9 +3,19 @@ import { Button } from "@/components/ui/button";
 import type { Content } from "@/content";
 import { SITE_CONFIG } from "@/content/site-config";
 
+/**
+ * The id the floating bar watches. It reveals itself when this section is no
+ * longer on screen, so the two have to agree on one string and this is where
+ * it is written.
+ */
+export const HERO_SECTION_ID = "hero";
+
 export function HeroSection({ copy }: { copy: Content["hero"] }) {
 	return (
-		<section className="bg-gradient-to-br from-brand-deep via-brand-dark to-brand text-white">
+		<section
+			id={HERO_SECTION_ID}
+			className="bg-gradient-to-br from-brand-deep via-brand-dark to-brand text-white"
+		>
 			<div className="mx-auto max-w-6xl px-6 py-24 sm:py-32 lg:px-8">
 				<p className="flex items-center gap-3 text-xs font-medium uppercase tracking-wider text-white/70">
 					<span aria-hidden="true" className="h-px w-8 bg-white/50" />

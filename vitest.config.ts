@@ -50,12 +50,37 @@ const stubAppEntry = () => ({
 			: null,
 });
 
+const RUNTIME_MODULE = "cloudflare:workers";
+const RUNTIME_MODULE_STUB = "\0runtime-module-stub";
+
+/**
+ * Stands in for workerd's own module under Node.
+ *
+ * `src/live/live-counter.ts` extends the runtime's `DurableObject`, and the
+ * Hono router imports the endpoint that addresses it, so every Node-side test
+ * touching `apiHono` now has that class on its import graph. Node cannot
+ * resolve a `cloudflare:` specifier at all — the whole file fails to load, and
+ * a test about which paths count as `/api` never runs.
+ *
+ * The stub is not a second implementation. It is a base class with no
+ * behaviour, which is exactly what the Node project needs: nothing there
+ * constructs a Durable Object. The real one runs in the Workers project, on
+ * the real runtime, in `src/live/live-counter.worker.test.ts`.
+ */
+const stubRuntimeModule = () => ({
+	name: "stub-cloudflare-workers-module",
+	enforce: "pre" as const,
+	resolveId: (id: string) => (id === RUNTIME_MODULE ? RUNTIME_MODULE_STUB : null),
+	load: (id: string) => (id === RUNTIME_MODULE_STUB ? "export class DurableObject {}" : null),
+});
+
 export default defineConfig({
 	test: {
 		projects: [
 			// Configuration and documentation invariants. No runtime needed, so
 			// paying for one would only slow them down.
 			{
+				plugins: [stubRuntimeModule()],
 				resolve: { alias },
 				test: {
 					name: "node",

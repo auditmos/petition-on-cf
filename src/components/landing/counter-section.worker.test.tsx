@@ -2,7 +2,7 @@ import { env } from "cloudflare:test";
 import { renderToString } from "react-dom/server";
 import { CounterSection } from "@/components/landing/counter-section";
 import { getContent } from "@/content";
-import { countSignatures } from "@/db/signatures";
+import { readSignatureCounts } from "@/db/signatures";
 import { resetDatabase } from "@/db/test-support";
 
 /**
@@ -32,7 +32,7 @@ async function seed(count: number): Promise<void> {
 async function renderCounter(): Promise<string> {
 	return renderToString(
 		<CounterSection
-			count={await countSignatures(env.DB)}
+			count={(await readSignatureCounts(env.DB)).total}
 			language="pl"
 			copy={getContent("pl").counter}
 		/>,

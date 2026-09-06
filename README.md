@@ -4,7 +4,7 @@
 
 A **template for running a public petition site** on Cloudflare Workers — one deployment = one petition, modeled on the excellent UX of [150proc.pl](https://150proc.pl/): hero → evidence with cited sources → mechanism → signature form → live counter and Poland map → public supporters list → share → FAQ.
 
-> **Status: in development.** Planning is complete; implementation is landing as vertical slices. Signing works end to end — form, persistence, bot check, rate limit, region attribution, in Polish and English — but the live counter, the map, the supporters list and the full legal layer are still ahead. See [Current state](#current-state) before running anything.
+> **Status: in development.** Planning is complete; implementation is landing as vertical slices. Signing works end to end — form, persistence, bot check, rate limit, region attribution, in Polish and English — and the counter is live, but the map, the supporters list and the full legal layer are still ahead. See [Current state](#current-state) before running anything.
 
 ## What this template delivers (when complete)
 
@@ -45,7 +45,7 @@ Implementation is dispatched as dependency-ordered tracer-bullet slices — each
 | [#4](https://github.com/auditmos/petition-on-cf/issues/4) | Minimal sign path | **landed** |
 | [#5](https://github.com/auditmos/petition-on-cf/issues/5) | Content module + PL/EN routing | **landed** |
 | [#6](https://github.com/auditmos/petition-on-cf/issues/6) | Trust pipeline: Turnstile, rate limit, geo | **landed** |
-| [#7](https://github.com/auditmos/petition-on-cf/issues/7) | Live counter DO + floating bar | planned |
+| [#7](https://github.com/auditmos/petition-on-cf/issues/7) | Live counter DO + floating bar | **landed** |
 | [#8](https://github.com/auditmos/petition-on-cf/issues/8) | Voivodeship map | planned |
 | [#9](https://github.com/auditmos/petition-on-cf/issues/9) | Full legal layer | planned |
 | [#10](https://github.com/auditmos/petition-on-cf/issues/10) | Supporters list | planned |
@@ -55,13 +55,14 @@ Implementation is dispatched as dependency-ordered tracer-bullet slices — each
 
 ## Current state
 
-The repo was generated from [tstack-on-cf](https://github.com/auditmos/tstack-on-cf) (TanStack Start + Hono on Workers, Drizzle, Zod, Shadcn/UI, Biome + Vitest + knip). Four slices have landed on top of it:
+The repo was generated from [tstack-on-cf](https://github.com/auditmos/tstack-on-cf) (TanStack Start + Hono on Workers, Drizzle, Zod, Shadcn/UI, Biome + Vitest + knip). Five slices have landed on top of it:
 
 - **Persistence is Cloudflare D1**, reached through Drizzle's SQLite driver behind `src/db/setup.ts`. The `signatures` table ships as a migration, and the landing page server-renders the total count from it — the number is in the first byte of HTML, not fetched afterwards.
 - **The demo `clients` domain is gone**, along with the Neon driver, its three credentials, and the seed script.
 - **Signing works.** `POST /api/signatures` runs the full trust pipeline — validate → Turnstile → per-IP rate limit → region attribution → unique-e-mail dedup — and the form renders a distinct answer for each way it can end. Every signature stores an ISO 3166-2:PL voivodeship code derived from its postal code, or from Cloudflare's geo-IP, or the `unknown` bucket.
 - **Copy is bilingual and lives outside the components.** `/` is Polish, `/en` English.
-- **Still ahead:** the live counter and floating bar ([#7](https://github.com/auditmos/petition-on-cf/issues/7)), the voivodeship map ([#8](https://github.com/auditmos/petition-on-cf/issues/8)) — region codes are stored but not displayed — the real legal texts ([#3](https://github.com/auditmos/petition-on-cf/issues/3), [#9](https://github.com/auditmos/petition-on-cf/issues/9)), and the supporters list ([#10](https://github.com/auditmos/petition-on-cf/issues/10)).
+- **The counter is live.** A `LiveCounter` Durable Object holds the counts, rebuilds them from D1 whenever it is asked cold, and pushes them over a hibernatable WebSocket to every open page — coalesced to about one push a second, with a 30-second reconciliation heartbeat behind it. A page that cannot open a socket falls back to polling `/api/signatures/snapshot` without saying so. The floating bar arrives once the hero is behind the reader and carries the same number.
+- **Still ahead:** the voivodeship map ([#8](https://github.com/auditmos/petition-on-cf/issues/8)) — region codes are stored but not displayed — the real legal texts ([#3](https://github.com/auditmos/petition-on-cf/issues/3), [#9](https://github.com/auditmos/petition-on-cf/issues/9)), and the supporters list ([#10](https://github.com/auditmos/petition-on-cf/issues/10)).
 
 ### Working on this repo
 

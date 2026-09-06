@@ -44,7 +44,7 @@ export const en = {
 
 	counter: {
 		eyebrow: "Support for this cause",
-		note: "The number comes straight from this deployment's signature database and is recalculated on every visit. After you sign, reload the page to see the new value — the live-updating counter arrives in a later phase.",
+		note: "The number comes straight from this deployment's signature database. It updates on its own, with no page reload: every new signature reaches all open tabs within about a second. If your network blocks live connections, the page quietly falls back to asking every few seconds.",
 		nouns: {
 			zero: "signatures",
 			one: "signature",
@@ -53,6 +53,11 @@ export const en = {
 			many: "signatures",
 			other: "signatures",
 		},
+	},
+
+	floatingBar: {
+		label: "Signature count and a shortcut to the form",
+		cta: "Sign the petition",
 	},
 
 	sign: {

@@ -1,6 +1,6 @@
 # petition-on-cf
 
-> Public petition site template on Cloudflare Workers — one deployment = one petition (150proc.pl-style): live signature counter (Durable Object + WebSocket hibernation), D1, Turnstile, PL/EN, Deploy to Cloudflare button. In development — D1 persistence and the `signatures` schema have landed; the remaining features land as dependency-ordered slice issues.
+> Public petition site template on Cloudflare Workers — one deployment = one petition (150proc.pl-style): live signature counter (Durable Object + WebSocket hibernation), D1, Turnstile, PL/EN, Deploy to Cloudflare button. In development — D1 persistence, the sign path with its trust pipeline, PL/EN content and the live counter have landed; the map, supporters list, legal layer and deploy button land as dependency-ordered slice issues.
 
 ## Planning (source of truth for what to build)
 

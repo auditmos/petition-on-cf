@@ -19,12 +19,13 @@ Durable decisions every slice must respect (full list in the plan header):
 
 ## Current state
 
-Issues #2, #4 and #5 have landed: D1 persistence, a working sign path, and the bilingual content module.
+Issues #2, #4, #5, #6 and #7 have landed: D1 persistence, a working sign path, the bilingual content module, the trust pipeline, and the live counter.
 
 - **Persistence** — `getDb(binding)` in `src/db/setup.ts` is the only module that imports a driver (`src/db/driver-boundary.test.ts` enforces it). Queries take the `D1Database` binding as a parameter — there is no singleton and no `initDatabase()`. The local loop needs no credentials: `pnpm run db:migrate:dev`. `wrangler.jsonc` ships all-zero placeholder `database_id` values; real ones come from `wrangler d1 create`.
-- **Sign path** — `POST /api/signatures` (validate → dedup → insert) and `GET /api/signatures/snapshot`. One schema, `createSignatureInputSchema` in `src/core/signature-input.ts`, validates in the form and again in the endpoint, taking its messages from the content files. Dedup is the unique index's answer read through `isUniqueViolation`, never a lookup. No Turnstile, rate limit or geo attribution yet — issue #6.
+- **Sign path** — `POST /api/signatures` (validate → dedup → insert) and `GET /api/signatures/snapshot`. One schema, `createSignatureInputSchema` in `src/core/signature-input.ts`, validates in the form and again in the endpoint, taking its messages from the content files. Dedup is the unique index's answer read through `isUniqueViolation`, never a lookup. The full pipeline runs in front of it — validate → Turnstile → per-IP rate limit → voivodeship attribution — and a stored row ends with a fire-and-forget notification to the live counter.
 - **Content and i18n** — `src/content/` is the only place copy lives. `getContent(language)` validates a per-language file against one schema and interpolates `{{tokens}}` from `site-config.ts`; `src/components/no-hardcoded-copy.test.ts` fails the build if a component holds a sentence. `/` is Polish and `/en` English, as mirrored route files delegating to one `LandingPage`; `src/content/routing.ts` owns the prefix arithmetic, and `buildHead` owns the hreflang pair and the localized OG tags.
-- Remaining issues (#6–#13) define the build order.
+- **Live counter** — `src/live/live-counter.ts` is the `LiveCounter` Durable Object: one per deployment, addressed through `liveCounter(env)`, upgraded to over `GET /api/live`, accepting sockets with `ctx.acceptWebSocket` so it can hibernate under them. Its notification carries no number — it re-reads D1 and broadcasts, coalesced to ~1/sec through its own alarm, with that alarm doubling as a 30s reconciliation heartbeat while anybody is connected. The page consumes it through `useLiveCount`, which degrades to polling the snapshot endpoint in silence; `FloatingBar` shows the same number once the hero is off screen.
+- Remaining issues (#3, #8–#13) define the build order.
 
 ## Stack
 
@@ -34,8 +35,8 @@ Issues #2, #4 and #5 have landed: D1 persistence, a working sign path, and the b
 | API | Hono on Cloudflare Workers |
 | Runtime | Cloudflare Workers |
 | Database | Cloudflare D1 (SQLite) + Drizzle |
-| Live updates | Durable Object + WebSocket hibernation (issue #7, planned) |
-| Bot protection | Cloudflare Turnstile (issue #6, planned) |
+| Live updates | Durable Object + WebSocket hibernation |
+| Bot protection | Cloudflare Turnstile |
 | Styling | Tailwind CSS v4, Shadcn (new-york, Zinc, CSS vars) |
 | Language | TypeScript (strict) |
 | Linter | Biome |
@@ -49,6 +50,7 @@ Issues #2, #4 and #5 have landed: D1 persistence, a working sign path, and the b
 - `src/hono/` — Hono API routes and factory
 - `src/db/` — one directory per domain (`table.ts`, `queries.ts`, `index.ts`); `schema.ts` is what drizzle-kit reads
 - `src/core/functions/` — TanStack server functions (server-only reads for route loaders)
+- `src/live/` — the `LiveCounter` Durable Object and the way to address it
 - `src/server.ts` — custom CF Workers entry (routes `/api/*` → Hono, rest → TanStack)
 - `src/integrations/tanstack-query/` — query client setup and providers
 - `plans/` — phased implementation plan (source of truth for slice scope)

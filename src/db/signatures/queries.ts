@@ -1,13 +1,40 @@
-import { count } from "drizzle-orm";
+import { count, sql } from "drizzle-orm";
 import { isUniqueViolation } from "@/core/errors";
+import type { SignatureCounts } from "@/core/signature-counts";
 import type { SignatureInput } from "@/core/signature-input";
+import { UNKNOWN_VOIVODESHIP } from "@/core/voivodeship";
 import { getDb } from "@/db/setup";
 import { signatures } from "./table";
 
-/** Total signatures stored. D1 is the source of truth for this number. */
-export async function countSignatures(binding: D1Database): Promise<number> {
-	const [row] = await getDb(binding).select({ total: count() }).from(signatures);
-	return row?.total ?? 0;
+/**
+ * The region a row is counted under.
+ *
+ * Attribution has written the string `unknown` since #6, but the column is
+ * nullable and every row stored before that carries a null. Coalescing here
+ * rather than in each reader is what keeps the bucket a single idea: a
+ * signature is a signature whether or not anything could place it on a map.
+ */
+const bucket = sql<string>`coalesce(${signatures.voivodeshipCode}, ${UNKNOWN_VOIVODESHIP})`;
+
+/**
+ * How many have signed, and from where. D1 is the source of truth for both.
+ *
+ * One `GROUP BY` rather than a count and a second query beside it, so the
+ * total can never disagree with the sum of its parts — which is exactly the
+ * disagreement a map with a headline number above it would put on screen.
+ */
+export async function readSignatureCounts(binding: D1Database): Promise<SignatureCounts> {
+	const rows = await getDb(binding)
+		.select({ code: bucket, signed: count() })
+		.from(signatures)
+		.groupBy(bucket);
+
+	const counts: SignatureCounts = { total: 0, byVoivodeship: {} };
+	for (const row of rows) {
+		counts.total += row.signed;
+		counts.byVoivodeship[row.code] = row.signed;
+	}
+	return counts;
 }
 
 /**

@@ -3,6 +3,13 @@
 import handler from "@tanstack/react-start/server-entry";
 import { apiHono } from "@/hono/api";
 
+/**
+ * The Durable Object class, re-exported because the runtime looks for it on
+ * the Worker's entry module rather than wherever it was written. The binding
+ * in wrangler.jsonc names this class; without the export, the deploy fails.
+ */
+export { LiveCounter } from "@/live";
+
 export function isApiRequest(pathname: string): boolean {
 	return pathname === "/api" || pathname.startsWith("/api/");
 }

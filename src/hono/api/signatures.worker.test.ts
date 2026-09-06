@@ -1,4 +1,5 @@
 import { createExecutionContext, env, waitOnExecutionContext } from "cloudflare:test";
+import type { SignatureCounts } from "@/core/signature-counts";
 import { resetDatabase } from "@/db/test-support";
 import { apiHono } from "@/hono/api";
 
@@ -72,7 +73,12 @@ function freshClientIp(): string {
 /** What Cloudflare's edge would have said about where the request came from. */
 type Geo = { country?: string; regionCode?: string };
 
-async function sign(body: unknown, clientIp?: string, geo?: Geo): Promise<Response> {
+async function sign(
+	body: unknown,
+	clientIp?: string,
+	geo?: Geo,
+	bindings: typeof env = env,
+): Promise<Response> {
 	const ctx = createExecutionContext();
 	const response = await apiHono.fetch(
 		new Request("https://example.com/api/signatures", {
@@ -84,7 +90,7 @@ async function sign(body: unknown, clientIp?: string, geo?: Geo): Promise<Respon
 			body: JSON.stringify(body),
 			...(geo ? { cf: geo } : {}),
 		}),
-		env,
+		bindings,
 		ctx,
 	);
 	await waitOnExecutionContext(ctx);
@@ -328,13 +334,16 @@ describe("POST /api/signatures, rejected", () => {
 });
 
 /**
- * The number the page reads back. It is a separate endpoint from the write on
- * purpose: the live-counter slice makes this the polling fallback, so its shape
- * has to hold per-voivodeship counts eventually and its cost has to stay a
- * count query rather than a page of rows.
+ * The counts the page reads back, and what it polls when no socket can be
+ * opened. It answers from D1 rather than from the `LiveCounter` Durable
+ * Object on purpose — a fallback that shares a failure domain with the thing
+ * it falls back from is not one.
+ *
+ * The shape is the same one the socket broadcasts, so a page that lost its
+ * connection renders the same object it was rendering a moment earlier.
  */
 describe("GET /api/signatures/snapshot", () => {
-	async function snapshot(): Promise<{ total: number }> {
+	async function snapshot(): Promise<SignatureCounts> {
 		const ctx = createExecutionContext();
 		const response = await apiHono.fetch(
 			new Request("https://example.com/api/signatures/snapshot"),
@@ -343,18 +352,114 @@ describe("GET /api/signatures/snapshot", () => {
 		);
 		await waitOnExecutionContext(ctx);
 		expect(response.status).toBe(200);
-		const body = (await response.json()) as { data: { total: number } };
+		const body = (await response.json()) as { data: SignatureCounts };
 		return body.data;
 	}
 
 	it("reports zero on a freshly migrated database", async () => {
-		expect(await snapshot()).toEqual({ total: 0 });
+		expect(await snapshot()).toEqual({ total: 0, byVoivodeship: {} });
 	});
 
 	it("reports the number of rows D1 actually holds", async () => {
 		await sign(VALID);
 		await sign({ ...VALID, email: "jan@example.com" });
 
-		expect(await snapshot()).toEqual({ total: 2 });
+		expect(await snapshot()).toEqual(expect.objectContaining({ total: 2 }));
+	});
+
+	// The map (#8) is the consumer, and it needs the split rather than the
+	// total. Nothing renders these yet; they travel so that slice is a
+	// component change rather than an endpoint change.
+	it("splits the total by the voivodeship each signature was attributed to", async () => {
+		await sign({ ...VALID, postalCode: "50-001" });
+		await sign({ ...VALID, email: "jan@example.com", postalCode: "51-001" });
+		await sign({ ...VALID, email: "ewa@example.com", postalCode: "80-001" });
+		await sign({ ...VALID, email: "olga@example.com" });
+
+		expect(await snapshot()).toEqual({
+			total: 4,
+			byVoivodeship: { "PL-DS": 2, "PL-PM": 1, unknown: 1 },
+		});
+	});
+});
+
+/**
+ * The last step of the pipeline, and the only one that is allowed to fail
+ * silently: telling the live counter that something changed.
+ *
+ * The signature is already in D1 by then. D1 is the source of truth, the
+ * counter is a cache in front of it, and a cache that cannot be reached is a
+ * reason for the page to be a second late — never a reason to lose a
+ * signature somebody just gave.
+ */
+describe("POST /api/signatures, live counter", () => {
+	/** A socket on the deployment's real counter, opened the way the page does. */
+	async function watch(): Promise<{ first: Promise<unknown>; next: () => Promise<unknown> }> {
+		const ctx = createExecutionContext();
+		const response = await apiHono.fetch(
+			new Request("https://example.com/api/live", { headers: { Upgrade: "websocket" } }),
+			env,
+			ctx,
+		);
+		await waitOnExecutionContext(ctx);
+
+		const socket = response.webSocket;
+		if (!socket) throw new Error("upgrade produced no socket");
+		socket.accept();
+
+		const next = () =>
+			new Promise((resolve) => {
+				socket.addEventListener("message", (event) => resolve(JSON.parse(String(event.data))), {
+					once: true,
+				});
+			});
+
+		return { first: next(), next };
+	}
+
+	/** An env whose counter is a stand-in, so the endpoint's side of it is visible. */
+	function withCounter(stub: { signatureRecorded: () => Promise<void> }): typeof env {
+		return {
+			...env,
+			LIVE_COUNTER: { idFromName: (name: string) => name, get: () => stub },
+		} as unknown as typeof env;
+	}
+
+	it("pushes the new counts to a watching page", async () => {
+		const watcher = await watch();
+		await watcher.first;
+		const pushed = watcher.next();
+
+		expect((await sign({ ...VALID, postalCode: "00-950" })).status).toBe(201);
+
+		expect(await pushed).toEqual({ total: 1, byVoivodeship: { "PL-MZ": 1 } });
+	});
+
+	it("stores the signature even when the counter cannot be told", async () => {
+		const broken = withCounter({
+			signatureRecorded: () => Promise.reject(new Error("counter unreachable")),
+		});
+
+		const response = await sign(VALID, undefined, undefined, broken);
+
+		expect(response.status).toBe(201);
+		expect(await storedRows()).toHaveLength(1);
+	});
+
+	// A duplicate changed nothing, so there is nothing to broadcast. Waking the
+	// object for it would mean a petition being spammed with one address pays
+	// for a D1 read per attempt.
+	it("says nothing to the counter when the e-mail had already signed", async () => {
+		const notifications: number[] = [];
+		const spying = withCounter({
+			signatureRecorded: async () => {
+				notifications.push(1);
+			},
+		});
+
+		await sign(VALID, undefined, undefined, spying);
+		await sign(VALID, undefined, undefined, spying);
+
+		expect(notifications).toHaveLength(1);
 	});
 });

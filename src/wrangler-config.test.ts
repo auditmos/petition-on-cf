@@ -17,6 +17,8 @@ function loadJsonc(path: string): Record<string, unknown> {
 /** Deployed environments, as opposed to the top-level block that dev uses. */
 const DEPLOYED_ENVS = ["staging", "production"] as const;
 
+type DurableObjects = { bindings?: { name?: string; class_name?: string }[] };
+
 type D1Binding = {
 	binding?: string;
 	database_name?: string;
@@ -223,5 +225,52 @@ describe("wrangler.jsonc D1 bindings", () => {
 		for (const env of ALL_ENVS) {
 			expect(blockFor(env)?.d1_databases?.[0]?.database_id).toMatch(/^0{8}-0{4}-0{4}-0{4}-0{12}$/);
 		}
+	});
+});
+
+/**
+ * The live counter's wiring, which fails in three different ways if any one
+ * piece is missing and in none of them at `pnpm dev`.
+ *
+ * A binding in only some environments deploys green and leaves one of them
+ * without a counter. A class nothing declared in a migration is refused at
+ * upload with a message about a namespace that was never created. And a class
+ * the entry module does not export is a binding pointing at nothing.
+ */
+describe("wrangler.jsonc Durable Object", () => {
+	const config = loadJsonc(WRANGLER) as EnvBlock & {
+		migrations?: { tag?: string; new_sqlite_classes?: string[]; new_classes?: string[] }[];
+		env?: Record<string, (EnvBlock & { durable_objects?: DurableObjects }) | undefined>;
+		durable_objects?: DurableObjects;
+	};
+
+	function blockFor(env: (typeof ALL_ENVS)[number]) {
+		return env === "dev" ? config : config.env?.[env];
+	}
+
+	// Not inherited from the top level — wrangler says so in the schema, and a
+	// staging Worker without the binding would throw on the first page load.
+	it.each(ALL_ENVS)("binds the counter in %s", (env) => {
+		expect(blockFor(env)?.durable_objects?.bindings).toEqual([
+			{ name: "LIVE_COUNTER", class_name: "LiveCounter" },
+		]);
+	});
+
+	it("declares the bound class in a migration", () => {
+		const declared = (config.migrations ?? []).flatMap((migration) => [
+			...(migration.new_sqlite_classes ?? []),
+			...(migration.new_classes ?? []),
+		]);
+
+		expect(declared).toContain("LiveCounter");
+	});
+
+	// The runtime looks for the class on the module `main` points at, not
+	// wherever it happens to be written.
+	it("exports that class from the Worker entry", () => {
+		const main = (config as { main?: string }).main ?? "";
+		const entry = readFileSync(resolve(ROOT, main), "utf8");
+
+		expect(entry).toMatch(/export\s*\{[^}]*\bLiveCounter\b[^}]*\}/);
 	});
 });

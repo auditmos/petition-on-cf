@@ -1,11 +1,12 @@
 import { type ZodError, z } from "zod";
 import { getContent } from "@/content";
-import { AppError } from "@/core/errors";
+import { AppError, rootCauseMessage } from "@/core/errors";
 import { createSignatureInputSchema } from "@/core/signature-input";
 import { verifyTurnstile } from "@/core/turnstile";
 import { resolveVoivodeship } from "@/core/voivodeship";
-import { countSignatures, insertSignature } from "@/db/signatures";
+import { insertSignature, readSignatureCounts } from "@/db/signatures";
 import { createHono } from "@/hono/factory";
+import { liveCounter } from "@/live";
 
 const signaturesEndpoint = createHono();
 
@@ -119,19 +120,39 @@ signaturesEndpoint.post("/", async (c) => {
 		throw new AppError(COPY.duplicate, "CONFLICT", 409, "email");
 	}
 
+	// The signature is in D1 by now, which is the only place it has to be. The
+	// counter is a cache in front of that, so telling it is the last thing that
+	// happens and the one thing allowed to fail: an unreachable Durable Object
+	// costs a watching page a few seconds of staleness, and must never cost a
+	// signer the signature they just gave.
+	c.executionCtx.waitUntil(
+		liveCounter(c.env)
+			.signatureRecorded()
+			.catch((error: unknown) => {
+				// biome-ignore lint/suspicious/noConsole: structured log for a swallowed failure surfaces in Workers tail
+				console.error(
+					JSON.stringify({
+						message: "live counter not notified",
+						error: rootCauseMessage(error),
+					}),
+				);
+			}),
+	);
+
 	return c.json({ data: write }, 201);
 });
 
 /**
- * The public count, as an object rather than a bare number.
+ * The public counts, and the page's fallback when no socket can be opened.
  *
- * The live-counter slice (#7) makes this the fallback the page polls when the
- * WebSocket cannot be established, and adds per-voivodeship counts beside
- * `total` — a response that was a number would have to change shape to get
- * there, and every consumer with it.
+ * It reads D1 rather than the `LiveCounter` Durable Object deliberately: this
+ * is what the page polls when the live path is unavailable, so routing it
+ * through the DO would put the fallback in the same failure domain as the
+ * thing it is a fallback for. The cost is a count query per poll, which is
+ * what a fallback is allowed to cost.
  */
 signaturesEndpoint.get("/snapshot", async (c) => {
-	return c.json({ data: { total: await countSignatures(c.env.DB) } });
+	return c.json({ data: await readSignatureCounts(c.env.DB) });
 });
 
 export default signaturesEndpoint;

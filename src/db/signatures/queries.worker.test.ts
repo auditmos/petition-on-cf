@@ -1,5 +1,5 @@
 import { env } from "cloudflare:test";
-import { countSignatures } from "@/db/signatures";
+import { readSignatureCounts } from "@/db/signatures";
 import { resetDatabase } from "@/db/test-support";
 
 /**
@@ -10,27 +10,66 @@ import { resetDatabase } from "@/db/test-support";
  */
 beforeEach(resetDatabase);
 
-/** The petition's only entity, inserted the way the schema says it stores. */
-async function insertSignature(email: string): Promise<void> {
+/**
+ * The petition's only entity, inserted the way the schema says it stores.
+ *
+ * `voivodeshipCode` is deliberately optional and deliberately allowed to be
+ * null: the column is nullable, and every row written before the trust
+ * pipeline (#6) started attributing regions carries a null in it. Those rows
+ * still have to be counted somewhere.
+ */
+async function insertSignature(email: string, voivodeshipCode?: string): Promise<void> {
 	await env.DB.prepare(
-		`INSERT INTO signatures (id, first_name, surname, email, city, signer_type, consent_rodo)
-		 VALUES (?, ?, ?, ?, ?, 'person', 1)`,
+		`INSERT INTO signatures (id, first_name, surname, email, city, signer_type, consent_rodo, voivodeship_code)
+		 VALUES (?, ?, ?, ?, ?, 'person', 1, ?)`,
 	)
-		.bind(crypto.randomUUID(), "Anna", "Kowalska", email, "Warszawa")
+		.bind(crypto.randomUUID(), "Anna", "Kowalska", email, "Warszawa", voivodeshipCode ?? null)
 		.run();
 }
 
-describe("countSignatures", () => {
+describe("readSignatureCounts", () => {
 	it("counts nothing on a freshly migrated database", async () => {
-		expect(await countSignatures(env.DB)).toBe(0);
+		expect(await readSignatureCounts(env.DB)).toEqual({ total: 0, byVoivodeship: {} });
 	});
 
 	it("counts every stored signature", async () => {
-		await insertSignature("anna@example.com");
-		await insertSignature("jan@example.com");
-		await insertSignature("ewa@example.com");
+		await insertSignature("anna@example.com", "PL-MZ");
+		await insertSignature("jan@example.com", "PL-MZ");
+		await insertSignature("ewa@example.com", "PL-DS");
 
-		expect(await countSignatures(env.DB)).toBe(3);
+		expect(await readSignatureCounts(env.DB)).toEqual({
+			total: 3,
+			byVoivodeship: { "PL-MZ": 2, "PL-DS": 1 },
+		});
+	});
+
+	// The map (#8) needs these split by region, and it needs the split to add
+	// up: a total that disagrees with the sum of its parts is a map with a
+	// number beside it that nobody can reconcile.
+	it("splits the total into per-voivodeship counts that sum to it", async () => {
+		await insertSignature("anna@example.com", "PL-PM");
+		await insertSignature("jan@example.com", "PL-PM");
+		await insertSignature("ewa@example.com", "PL-SL");
+		await insertSignature("olga@example.com", "unknown");
+
+		const counts = await readSignatureCounts(env.DB);
+		const summed = Object.values(counts.byVoivodeship).reduce((sum, n) => sum + n, 0);
+
+		expect(summed).toBe(counts.total);
+	});
+
+	// Attribution writes the string `unknown` rather than a null, but rows
+	// stored before it existed have nulls in that column — and a signature is a
+	// signature whether or not anything could place it on a map.
+	it("files signatures stored before region attribution under the unknown bucket", async () => {
+		await insertSignature("anna@example.com");
+		await insertSignature("jan@example.com", "unknown");
+		await insertSignature("ewa@example.com", "PL-WP");
+
+		expect(await readSignatureCounts(env.DB)).toEqual({
+			total: 3,
+			byVoivodeship: { unknown: 2, "PL-WP": 1 },
+		});
 	});
 
 	// The dedup key issue #4 will build on. What ships in *this* slice is the
@@ -42,7 +81,7 @@ describe("countSignatures", () => {
 		await expect(insertSignature("anna@example.com")).rejects.toThrow(
 			/UNIQUE constraint failed: signatures\.email/i,
 		);
-		expect(await countSignatures(env.DB)).toBe(1);
+		expect(await readSignatureCounts(env.DB)).toEqual(expect.objectContaining({ total: 1 }));
 	});
 
 	it("carries a unique index on e-mail into the migrated database", async () => {

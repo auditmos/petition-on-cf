@@ -4,9 +4,9 @@ import type { Content, Language } from "@/content";
  * The petition's headline number.
  *
  * Presentational on purpose: the count arrives as a prop, so the same component
- * serves the server-rendered first paint and — once issue #7 lands the
- * `LiveCounter` Durable Object — a value pushed over a WebSocket. Nothing here
- * knows where the number came from.
+ * serves the server-rendered first paint and the value the `LiveCounter`
+ * Durable Object pushes over a WebSocket. Nothing here knows where the number
+ * came from.
  *
  * The noun beside it is a lookup rather than a string with an `s` appended:
  * Polish picks between three forms by the last two digits, so "5 podpisów" and
@@ -23,8 +23,7 @@ export function SignatureCount({
 	language: Language;
 	nouns: Content["counter"]["nouns"];
 }) {
-	const figure = new Intl.NumberFormat(language).format(count);
-	const noun = nouns[new Intl.PluralRules(language).select(count)];
+	const { figure, noun } = formatCount(count, language, nouns);
 
 	return (
 		// `output` carries an implicit `status` role, so the count is announced
@@ -39,4 +38,23 @@ export function SignatureCount({
 			</span>
 		</output>
 	);
+}
+
+/**
+ * The number and the word for it, in this language.
+ *
+ * Shared with the floating bar, which shows the same count small and inline.
+ * Two components formatting it separately would eventually disagree about
+ * which Polish plural a number takes, and the bar and the section are on
+ * screen at the same moment often enough for that to show.
+ */
+export function formatCount(
+	count: number,
+	language: Language,
+	nouns: Content["counter"]["nouns"],
+): { figure: string; noun: string } {
+	return {
+		figure: new Intl.NumberFormat(language).format(count),
+		noun: nouns[new Intl.PluralRules(language).select(count)],
+	};
 }

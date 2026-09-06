@@ -38,6 +38,23 @@
 			"migrations_dir": "src/db/migrations/dev"
 		}
 	],
+	// The live counter: one object per deployment, holding the counts in memory
+	// and pushing them to whoever is watching. It is a cache and a broadcaster,
+	// never a writer — D1 stays the source of truth, and everything this object
+	// knows it read from there.
+	//
+	// NOT inherited by env blocks — repeated in each one below.
+	"durable_objects": {
+		"bindings": [{ "name": "LIVE_COUNTER", "class_name": "LiveCounter" }]
+	},
+	// Declaring the class is what creates its namespace on the account. This
+	// key *is* inherited, so it is stated once and every environment gets it —
+	// which is what you want, since all three run the same class.
+	//
+	// `new_sqlite_classes` rather than `new_classes`: SQLite-backed is the
+	// current default for new namespaces, and it is what the alarm the object
+	// schedules is stored in. The counts themselves are never persisted.
+	"migrations": [{ "tag": "v1", "new_sqlite_classes": ["LiveCounter"] }],
 	// The sign endpoint's per-IP ceiling, in the Worker rather than in the
 	// dashboard so that cloning the repository is the whole setup — a WAF rule
 	// would live in an account this template cannot configure.
@@ -79,6 +96,9 @@
 		"staging": {
 			"name": "tanstack-start-app-staging",
 			"vars": { "CLOUDFLARE_ENV": "staging" },
+			"durable_objects": {
+				"bindings": [{ "name": "LIVE_COUNTER", "class_name": "LiveCounter" }]
+			},
 			"secrets": {
 				"required": ["TURNSTILE_SECRET_KEY"]
 			},
@@ -109,6 +129,9 @@
 		"production": {
 			"name": "tanstack-start-app-production",
 			"vars": { "CLOUDFLARE_ENV": "production" },
+			"durable_objects": {
+				"bindings": [{ "name": "LIVE_COUNTER", "class_name": "LiveCounter" }]
+			},
 			"secrets": {
 				"required": ["TURNSTILE_SECRET_KEY"]
 			},

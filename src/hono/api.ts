@@ -1,6 +1,7 @@
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { AppError } from "@/core/errors";
 import healthEndpoint from "@/hono/api/health";
+import liveEndpoint from "@/hono/api/live";
 import signaturesEndpoint from "@/hono/api/signatures";
 import { createHono } from "./factory";
 
@@ -8,6 +9,7 @@ export const apiHono = createHono().basePath("/api");
 
 apiHono.route("/health", healthEndpoint);
 apiHono.route("/signatures", signaturesEndpoint);
+apiHono.route("/live", liveEndpoint);
 
 apiHono.onError((err, c) => {
 	if (err instanceof AppError) {

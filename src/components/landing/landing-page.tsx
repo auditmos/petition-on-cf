@@ -1,7 +1,9 @@
+import { useLiveCount } from "@/components/counter/use-live-count";
 import { CounterSection } from "@/components/landing/counter-section";
 import { FeaturesSection } from "@/components/landing/features-section";
+import { FloatingBar } from "@/components/landing/floating-bar";
 import { Footer } from "@/components/landing/footer";
-import { HeroSection } from "@/components/landing/hero-section";
+import { HERO_SECTION_ID, HeroSection } from "@/components/landing/hero-section";
 import { HowItWorksSection } from "@/components/landing/how-it-works-section";
 import { SignSection } from "@/components/landing/sign-section";
 import { StatsSection } from "@/components/landing/stats-section";
@@ -18,6 +20,11 @@ import { getContent, type Language } from "@/content";
  * `path` is this page without a language prefix. The route supplies it as the
  * literal it already is, which is what keeps the language switcher out of the
  * router's state and therefore testable.
+ *
+ * `count` is what the loader read from D1 for the first paint. From here the
+ * page takes over: one socket, opened once, feeding both places the number
+ * appears. Opening a second connection for the floating bar would double every
+ * deployment's socket count to show the same figure twice.
  */
 export function LandingPage({
 	count,
@@ -29,6 +36,7 @@ export function LandingPage({
 	path?: string;
 }) {
 	const content = getContent(language);
+	const live = useLiveCount(count);
 
 	return (
 		<div className="min-h-screen bg-paper">
@@ -41,13 +49,14 @@ export function LandingPage({
 			/>
 			<main>
 				<HeroSection copy={content.hero} />
-				<CounterSection count={count} language={language} copy={content.counter} />
+				<CounterSection count={live} language={language} copy={content.counter} />
 				<SignSection copy={content.sign} language={language} />
 				<StatsSection copy={content.stats} />
 				<FeaturesSection copy={content.features} />
 				<HowItWorksSection copy={content.howItWorks} />
 			</main>
 			<Footer copy={content.footer} />
+			<FloatingBar count={live} language={language} copy={content} watching={HERO_SECTION_ID} />
 		</div>
 	);
 }

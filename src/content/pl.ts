@@ -43,7 +43,7 @@ export const pl = {
 
 	counter: {
 		eyebrow: "Poparcie dla tej sprawy",
-		note: "Liczba pochodzi wprost z bazy podpisów tego wdrożenia i jest wyliczana przy każdym wejściu na stronę. Po złożeniu podpisu odśwież stronę, żeby zobaczyć nową wartość — licznik aktualizowany na żywo powstaje w kolejnym etapie.",
+		note: "Liczba pochodzi wprost z bazy podpisów tego wdrożenia. Aktualizuje się sama, bez odświeżania strony: każdy nowy podpis dociera do wszystkich otwartych kart w ciągu sekundy. Jeśli Twoja sieć blokuje połączenia na żywo, strona po cichu przechodzi na odpytywanie co kilkanaście sekund.",
 		nouns: {
 			zero: "podpisów",
 			one: "podpis",
@@ -52,6 +52,11 @@ export const pl = {
 			many: "podpisów",
 			other: "podpisów",
 		},
+	},
+
+	floatingBar: {
+		label: "Licznik podpisów i skrót do formularza",
+		cta: "Podpisz petycję",
 	},
 
 	sign: {
@@ -71,7 +76,7 @@ export const pl = {
 		submit: "Podpisz petycję",
 		success: {
 			heading: "Dziękujemy — Twój podpis został zapisany.",
-			note: "Odśwież stronę, żeby zobaczyć zaktualizowaną liczbę podpisów.",
+			note: "Licznik powyżej uwzględnia już Twój podpis — i podpisy, które składają teraz inni.",
 		},
 		duplicate: "Ten adres e-mail już podpisał tę petycję — nie trzeba nic więcej robić.",
 		invalidSubmission: "Nie udało się zapisać podpisu — popraw zaznaczone pola.",

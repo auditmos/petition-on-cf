@@ -80,6 +80,17 @@ export const contentSchema = z.object({
 		}),
 	}),
 
+	/**
+	 * The bar that follows the reader down the page. It shows the same number
+	 * the counter section does, so it borrows that section's nouns and needs
+	 * only its own label and its own call to action.
+	 */
+	floatingBar: z.object({
+		/** Names the region for a reader who arrives at it by keyboard. */
+		label: line,
+		cta: line,
+	}),
+
 	sign: z.object({
 		eyebrow: line,
 		heading: line,

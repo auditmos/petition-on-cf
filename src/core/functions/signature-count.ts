@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { createServerFn } from "@tanstack/react-start";
-import { countSignatures } from "@/db/signatures";
+import { readSignatureCounts } from "@/db/signatures";
 
 /**
  * The landing page's count, read on the server.
@@ -13,9 +13,12 @@ import { countSignatures } from "@/db/signatures";
  * to carry a binding on — the Worker's bindings are reachable from anywhere
  * inside the isolate, which is exactly what this needs and nothing more.
  *
- * Issue #7 replaces this read with a cached value from the `LiveCounter`
- * Durable Object; D1 stays the source of truth behind it.
+ * It reads D1 rather than the `LiveCounter` Durable Object on purpose. This is
+ * the first paint, which has to be right; the DO is a cache whose whole job is
+ * to be cheap afterwards. The socket takes over from here, and the number it
+ * pushes comes from the same query.
  */
-export const fetchSignatureCount = createServerFn({ method: "GET" }).handler(() =>
-	countSignatures(env.DB),
-);
+export const fetchSignatureCount = createServerFn({ method: "GET" }).handler(async () => {
+	const { total } = await readSignatureCounts(env.DB);
+	return total;
+});
