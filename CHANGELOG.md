@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/auditmos/petition-on-cf/compare/v1.1.0...v1.2.0) (2026-09-06)
+
+
+### Features
+
+* **legal:** capture reference legal wording as tokenized fixtures ([a16a363](https://github.com/auditmos/petition-on-cf/commit/a16a36359b98b4ee58ae71c9b08a582c032b00dc)), closes [#9](https://github.com/auditmos/petition-on-cf/issues/9) [#9](https://github.com/auditmos/petition-on-cf/issues/9) [#3](https://github.com/auditmos/petition-on-cf/issues/3)
+
 # [1.1.0](https://github.com/auditmos/petition-on-cf/compare/v1.0.0...v1.1.0) (2026-09-06)
 
 
