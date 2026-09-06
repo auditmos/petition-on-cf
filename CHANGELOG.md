@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/auditmos/petition-on-cf/compare/v1.7.0...v1.8.0) (2026-09-06)
+
+
+### Features
+
+* **live:** broadcast the count over a hibernating Durable Object ([d81baa6](https://github.com/auditmos/petition-on-cf/commit/d81baa6e4d18c572dfa0e2f1a31cd8a6337acab2)), closes [#8](https://github.com/auditmos/petition-on-cf/issues/8) [#7](https://github.com/auditmos/petition-on-cf/issues/7)
+
 # [1.7.0](https://github.com/auditmos/petition-on-cf/compare/v1.6.1...v1.7.0) (2026-09-06)
 
 
