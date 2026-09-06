@@ -1,3 +1,10 @@
+# [1.9.0](https://github.com/auditmos/petition-on-cf/compare/v1.8.1...v1.9.0) (2026-09-06)
+
+
+### Features
+
+* **map:** shade the voivodeships and answer under the pointer ([d7cf30e](https://github.com/auditmos/petition-on-cf/commit/d7cf30e609914e05ded255312da99ac877bf7913)), closes [#8](https://github.com/auditmos/petition-on-cf/issues/8)
+
 ## [1.8.1](https://github.com/auditmos/petition-on-cf/compare/v1.8.0...v1.8.1) (2026-09-06)
 
 
