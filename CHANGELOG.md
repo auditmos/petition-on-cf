@@ -1,3 +1,10 @@
+## [1.6.1](https://github.com/auditmos/petition-on-cf/compare/v1.6.0...v1.6.1) (2026-09-06)
+
+
+### Bug Fixes
+
+* **security:** guard server functions with a same-origin check ([76b8abd](https://github.com/auditmos/petition-on-cf/commit/76b8abd4f35c84537c55859d264e0ad18d9a4b56))
+
 # [1.6.0](https://github.com/auditmos/petition-on-cf/compare/v1.5.0...v1.6.0) (2026-09-06)
 
 
