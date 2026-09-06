@@ -49,36 +49,62 @@ export function FloatingBar({
 	const { figure, noun } = formatCount(count, language, copy.counter.nouns);
 
 	return (
-		<aside
-			aria-label={copy.floatingBar.label}
-			className="fixed inset-x-0 bottom-0 z-40 border-t border-divider bg-paper/95 backdrop-blur"
-		>
-			<div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3 lg:px-8">
-				{/*
-				 * Not a live region, deliberately. The counter section's own
-				 * `output` announces the number when it moves, and a second live
-				 * region showing the same value would announce every signature
-				 * twice.
-				 */}
-				<p className="flex items-baseline gap-2">
-					<span
-						data-testid="floating-bar-figure"
-						className="font-display text-2xl tabular-nums text-brand"
-					>
-						{figure}
-					</span>
-					<span data-testid="floating-bar-noun" className="text-sm text-quiet">
-						{noun}
-					</span>
-				</p>
+		<>
+			{/*
+			 * The footprint, given back to the page.
+			 *
+			 * A fixed element is out of flow, so at the end of the document the
+			 * bar would sit on top of the last strip of the footer with no
+			 * further scroll to bring it out. Mid-page that is harmless — a
+			 * reader scrolls another inch — but the end of the page has no
+			 * further inch. The spacer is rendered here rather than as padding
+			 * on the page because the height belongs to the bar: one constant,
+			 * one file, nothing to keep in sync.
+			 */}
+			<div aria-hidden="true" data-testid="floating-bar-spacer" className={BAR_HEIGHT} />
 
-				<Button asChild size="sm">
-					<a href={`#${SIGN_SECTION_ID}`}>{copy.floatingBar.cta}</a>
-				</Button>
-			</div>
-		</aside>
+			<aside
+				aria-label={copy.floatingBar.label}
+				className={`fixed inset-x-0 bottom-0 z-40 border-t border-divider bg-paper/95 backdrop-blur ${BAR_HEIGHT}`}
+			>
+				<div className="mx-auto flex h-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+					{/*
+					 * Not a live region, deliberately. The counter section's own
+					 * `output` announces the number when it moves, and a second live
+					 * region showing the same value would announce every signature
+					 * twice.
+					 */}
+					<p className="flex min-w-0 items-baseline gap-2 whitespace-nowrap">
+						<span
+							data-testid="floating-bar-figure"
+							className="font-display text-2xl tabular-nums text-brand"
+						>
+							{figure}
+						</span>
+						<span data-testid="floating-bar-noun" className="truncate text-sm text-quiet">
+							{noun}
+						</span>
+					</p>
+
+					<Button asChild size="sm" className="shrink-0">
+						<a href={`#${SIGN_SECTION_ID}`}>{copy.floatingBar.cta}</a>
+					</Button>
+				</div>
+			</aside>
+		</>
 	);
 }
+
+/**
+ * The bar's height, and therefore the space it gives back.
+ *
+ * Stated rather than left to the content, because the spacer above has to
+ * match it and two elements agreeing by coincidence is not agreement. The row
+ * is held to one line — `whitespace-nowrap` on the count, `shrink-0` on the
+ * button — so a long figure or a long translation cannot wrap the bar taller
+ * than the space it reserved.
+ */
+const BAR_HEIGHT = "h-16";
 
 /** Where the bar's call to action goes. The sign section answers to this id. */
 const SIGN_SECTION_ID = "podpisz";

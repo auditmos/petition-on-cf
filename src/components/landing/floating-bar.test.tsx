@@ -145,3 +145,53 @@ describe("FloatingBar", () => {
 		expect(FakeObserver.instances).toHaveLength(0);
 	});
 });
+
+/**
+ * The bar is fixed to the bottom of the viewport, so it sits on top of
+ * whatever is behind it. Mid-page that is harmless — a reader scrolls another
+ * inch and the content comes out from under it. At the *end* of the page there
+ * is no further inch, so the last strip of the footer would be covered with no
+ * way to reach it.
+ *
+ * The fix is the bar reserving its own footprint rather than the page knowing
+ * the bar's height: it renders a spacer in flow beside the fixed element, so
+ * the two cannot drift apart when one of them is restyled.
+ */
+describe("FloatingBar, room at the end of the page", () => {
+	const spacer = () => screen.queryByTestId("floating-bar-spacer");
+	const bar = () => screen.getByRole("complementary", { name: COPY.floatingBar.label });
+
+	/** The Tailwind height utility an element carries, whichever one it is. */
+	function heightClass(element: Element): string | undefined {
+		return [...element.classList].find((name) => /^h-/.test(name));
+	}
+
+	it("reserves room once it is on screen", () => {
+		renderBar();
+
+		FakeObserver.last.onScreen(false);
+
+		expect(spacer()).not.toBeNull();
+	});
+
+	// The whole point is that the reserved space equals the occupied space. A
+	// spacer shorter than the bar leaves a strip covered; a taller one leaves a
+	// gap under the footer that looks like a rendering bug.
+	it("reserves exactly the height it occupies", () => {
+		renderBar();
+
+		FakeObserver.last.onScreen(false);
+
+		const reserved = heightClass(spacer() as Element);
+		expect(reserved).toBeDefined();
+		expect(reserved).toBe(heightClass(bar()));
+	});
+
+	it("reserves nothing while it is not there", () => {
+		renderBar();
+
+		FakeObserver.last.onScreen(true);
+
+		expect(spacer()).toBeNull();
+	});
+});
