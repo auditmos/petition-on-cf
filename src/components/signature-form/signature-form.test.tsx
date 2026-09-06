@@ -34,6 +34,38 @@ function sentBody(stub: ReturnType<typeof stubFetch>): unknown {
 	return JSON.parse(String(init.body));
 }
 
+/**
+ * Stands in for Cloudflare's widget script, which is a system boundary: it is
+ * remote, it draws its own UI, and nothing about it is this form's code.
+ *
+ * `render` is where the real script hands back a token, so the stub calls the
+ * callback the same way — synchronously for a key that passes, not at all for
+ * a widget still thinking or already broken.
+ */
+function stubTurnstile(token: string | null = "a-token-the-widget-produced") {
+	const api = {
+		render: vi.fn(
+			(_element: HTMLElement, options: { callback: (token: string) => void; language: string }) => {
+				if (token !== null) options.callback(token);
+				return "widget-id";
+			},
+		),
+		remove: vi.fn(),
+	};
+	vi.stubGlobal("turnstile", api);
+	return api;
+}
+
+/** The options Cloudflare's script was asked to render the widget with. */
+function renderedWith(api: ReturnType<typeof stubTurnstile>): { language: string } {
+	const [, options] = api.render.mock.calls[0] as unknown as [HTMLElement, { language: string }];
+	return options;
+}
+
+beforeEach(() => {
+	stubTurnstile();
+});
+
 afterEach(() => {
 	vi.unstubAllGlobals();
 });
@@ -49,7 +81,7 @@ describe.each(LANGUAGES)("SignatureForm in %s", (language) => {
 		const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
 		render(
 			<QueryClientProvider client={queryClient}>
-				<SignatureForm copy={copy} />
+				<SignatureForm copy={copy} language={language} />
 			</QueryClientProvider>,
 		);
 	}
@@ -87,6 +119,7 @@ describe.each(LANGUAGES)("SignatureForm in %s", (language) => {
 			city: "Warszawa",
 			postalCode: "00-950",
 			consentRodo: true,
+			turnstileToken: "a-token-the-widget-produced",
 		});
 
 		expect((await screen.findByRole("status")).textContent).toContain(copy.success.heading);
@@ -168,5 +201,55 @@ describe.each(LANGUAGES)("SignatureForm in %s", (language) => {
 
 		await waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(1));
 		expect(sentBody(fetchStub)).toEqual(expect.objectContaining({ postalCode: null }));
+	});
+
+	/**
+	 * The bot check, from the form's side. What it owes the signer is a
+	 * distinguishable sentence for each way it can go wrong — "we could not
+	 * confirm you are a person" and "you have submitted too often" are
+	 * different problems with different fixes, and neither is "try again".
+	 */
+	it("holds the submission back until the widget has produced a token", async () => {
+		const fetchStub = stubFetch();
+		stubTurnstile(null);
+		renderForm();
+
+		fillIn();
+		submit();
+
+		await waitFor(() => expect(screen.getByRole("alert").textContent).toBe(copy.errors.turnstile));
+		expect(fetchStub).not.toHaveBeenCalled();
+	});
+
+	it("says the bot check failed when the server refuses the token", async () => {
+		stubFetch({ status: 403, body: { error: "no", code: "FORBIDDEN" } });
+		renderForm();
+
+		fillIn();
+		submit();
+
+		expect((await screen.findByRole("status")).textContent).toContain(copy.botCheckFailed);
+	});
+
+	// The widget draws its own UI, so if it is not told the page language it
+	// picks the browser's — which is how an English page ends up with a Polish
+	// bot check. Cloudflare takes the language as a render option; the page
+	// already knows it, so the only way to get this wrong is not to pass it.
+	it("renders the bot check in the language of the page", () => {
+		const api = stubTurnstile();
+
+		renderForm();
+
+		expect(renderedWith(api).language).toBe(language);
+	});
+
+	it("says to wait when the server rate-limits the address", async () => {
+		stubFetch({ status: 429, body: { error: "slow down", code: "RATE_LIMITED" } });
+		renderForm();
+
+		fillIn();
+		submit();
+
+		expect((await screen.findByRole("status")).textContent).toContain(copy.rateLimited);
 	});
 });

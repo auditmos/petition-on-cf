@@ -75,6 +75,10 @@ export const en = {
 			note: "Reload the page to see the updated signature count.",
 		},
 		invalidSubmission: "The signature could not be saved — please correct the marked fields.",
+		botCheckFailed:
+			"We could not confirm that a person is signing. Please reload the page and try again.",
+		rateLimited:
+			"Too many signatures have been submitted from this address at once. Please try again in a minute.",
 		duplicate:
 			"This e-mail address has already signed this petition — there is nothing more to do.",
 		failure: "The signature could not be saved. Please try again in a moment.",
@@ -85,6 +89,7 @@ export const en = {
 			city: "Enter your town or city.",
 			postalCode: "A postal code looks like 00-000.",
 			consentRodo: "Without this consent we cannot record your signature.",
+			turnstile: "Please wait for the anti-bot check to finish.",
 			tooLong: "This field can hold at most 100 characters.",
 			emailTooLong: "An e-mail address can hold at most 254 characters.",
 		},

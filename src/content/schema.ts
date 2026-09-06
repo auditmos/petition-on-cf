@@ -98,6 +98,10 @@ export const contentSchema = z.object({
 		duplicate: line,
 		/** What the endpoint says when a payload never reaches the database. */
 		invalidSubmission: line,
+		/** Said when the bot check refused the submission, not the signer. */
+		botCheckFailed: line,
+		/** Said when this address has submitted too often, too fast. */
+		rateLimited: line,
 		failure: line,
 		/**
 		 * Validation messages. They belong to the copy, not to the schema that
@@ -111,6 +115,8 @@ export const contentSchema = z.object({
 			city: line,
 			postalCode: line,
 			consentRodo: line,
+			/** Shown when the signer submits before the widget has vouched for them. */
+			turnstile: line,
 			tooLong: line,
 			emailTooLong: line,
 		}),

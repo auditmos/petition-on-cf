@@ -42,7 +42,7 @@ export function LandingPage({
 			<main>
 				<HeroSection copy={content.hero} />
 				<CounterSection count={count} language={language} copy={content.counter} />
-				<SignSection copy={content.sign} />
+				<SignSection copy={content.sign} language={language} />
 				<StatsSection copy={content.stats} />
 				<FeaturesSection copy={content.features} />
 				<HowItWorksSection copy={content.howItWorks} />

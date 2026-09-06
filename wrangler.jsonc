@@ -12,11 +12,15 @@
 	// `wrangler deploy` fail with a named list when one was never set.
 	// NOT inherited by env blocks — must be repeated in each one.
 	//
-	// Empty on purpose: D1 is a binding, so persistence needs no credentials,
-	// and this template sends no e-mail and calls no third party. The first
-	// entry will be the Turnstile secret key (issue #6).
+	// One entry: the Turnstile secret key, which the sign endpoint spends
+	// against siteverify. Persistence needs no credentials (D1 is a binding)
+	// and this template still sends no e-mail and calls nothing else.
+	//
+	// `.dev.vars.example` ships Cloudflare's always-pass *test* secret, so a
+	// fresh clone signs without an account. Replace it with a real key before
+	// the site collects anything you care about — the README says how.
 	"secrets": {
-		"required": []
+		"required": ["TURNSTILE_SECRET_KEY"]
 	},
 	// The single source of truth. `migrations_dir` is the directory the matching
 	// drizzle-<env>.config.ts writes to, so `db:generate:<env>` and
@@ -32,6 +36,23 @@
 			"database_name": "petition-dev",
 			"database_id": "00000000-0000-0000-0000-000000000000",
 			"migrations_dir": "src/db/migrations/dev"
+		}
+	],
+	// The sign endpoint's per-IP ceiling, in the Worker rather than in the
+	// dashboard so that cloning the repository is the whole setup — a WAF rule
+	// would live in an account this template cannot configure.
+	//
+	// Five per minute per address. A person signs once, so the ceiling only
+	// binds on a machine submitting in a loop; five leaves room for a household
+	// or an office behind one NAT without anyone noticing it exists. `period`
+	// accepts 10 or 60 and nothing else.
+	//
+	// NOT inherited by env blocks — repeated in each one below.
+	"ratelimits": [
+		{
+			"name": "SIGN_RATE_LIMIT",
+			"namespace_id": "1001",
+			"simple": { "limit": 5, "period": 60 }
 		}
 	],
 	"observability": {
@@ -59,8 +80,15 @@
 			"name": "tanstack-start-app-staging",
 			"vars": { "CLOUDFLARE_ENV": "staging" },
 			"secrets": {
-				"required": []
+				"required": ["TURNSTILE_SECRET_KEY"]
 			},
+			"ratelimits": [
+				{
+					"name": "SIGN_RATE_LIMIT",
+					"namespace_id": "1001",
+					"simple": { "limit": 5, "period": 60 }
+				}
+			],
 			"d1_databases": [
 				{
 					"binding": "DB",
@@ -82,8 +110,15 @@
 			"name": "tanstack-start-app-production",
 			"vars": { "CLOUDFLARE_ENV": "production" },
 			"secrets": {
-				"required": []
+				"required": ["TURNSTILE_SECRET_KEY"]
 			},
+			"ratelimits": [
+				{
+					"name": "SIGN_RATE_LIMIT",
+					"namespace_id": "1001",
+					"simple": { "limit": 5, "period": 60 }
+				}
+			],
 			"d1_databases": [
 				{
 					"binding": "DB",

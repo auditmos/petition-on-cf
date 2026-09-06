@@ -17,8 +17,11 @@ import { apiHono } from "@/hono/api";
  *   signed, 400 with field-level details for anything invalid.
  * - **Dedup is the unique index's decision**, not a lookup's — so a duplicate
  *   is observed as a failed insert, never as a row that was found first.
- * - **Not covered here**: Turnstile, rate limiting, geo attribution, the
- *   signer-type toggle and live updates. Later slices own those.
+ * - **Turnstile is a system boundary**, so siteverify is stubbed rather than
+ *   called: these tests are about what the endpoint does with the answer, not
+ *   about Cloudflare's service being up.
+ * - **Not covered here**: the signer-type toggle and live updates. Later
+ *   slices own those.
  */
 beforeEach(resetDatabase);
 
@@ -28,21 +31,69 @@ const VALID = {
 	email: "anna@example.com",
 	city: "Warszawa",
 	consentRodo: true,
+	turnstileToken: "a-token-the-widget-produced",
 } as const;
 
-async function sign(body: unknown): Promise<Response> {
+/**
+ * Stands in for Cloudflare's siteverify, the one thing here that would
+ * otherwise be a network call. Returning the verdict rather than the whole
+ * response body is what keeps a test about rejection from also being about
+ * Turnstile's JSON shape — `src/core/turnstile.test.ts` owns that.
+ */
+function stubSiteverify(success: boolean): ReturnType<typeof vi.fn> {
+	const stub = vi.fn(async () => Response.json({ success }));
+	vi.stubGlobal("fetch", stub);
+	return stub;
+}
+
+beforeEach(() => stubSiteverify(true));
+
+afterEach(() => {
+	vi.unstubAllGlobals();
+});
+
+/**
+ * Every request comes from its own address unless the test names one.
+ *
+ * The rate limiter's counters are keyed on the client IP and outlive a single
+ * test the way a real minute does. Without this, the twenty-odd requests in
+ * this file that have nothing to do with rate limiting would share one bucket
+ * and the sixth of them would start failing — a test breaking because of what
+ * an unrelated test did before it. Only the rate-limit block names an address,
+ * and that is exactly where sharing one is the point.
+ */
+let clientIpCounter = 0;
+
+function freshClientIp(): string {
+	clientIpCounter += 1;
+	return `192.0.2.${clientIpCounter}`;
+}
+
+/** What Cloudflare's edge would have said about where the request came from. */
+type Geo = { country?: string; regionCode?: string };
+
+async function sign(body: unknown, clientIp?: string, geo?: Geo): Promise<Response> {
 	const ctx = createExecutionContext();
 	const response = await apiHono.fetch(
 		new Request("https://example.com/api/signatures", {
 			method: "POST",
-			headers: { "content-type": "application/json" },
+			headers: {
+				"content-type": "application/json",
+				"cf-connecting-ip": clientIp ?? freshClientIp(),
+			},
 			body: JSON.stringify(body),
+			...(geo ? { cf: geo } : {}),
 		}),
 		env,
 		ctx,
 	);
 	await waitOnExecutionContext(ctx);
 	return response;
+}
+
+/** A signature from a signer who has not signed before, for burst tests. */
+function nthSigner(n: number): Record<string, unknown> {
+	return { ...VALID, email: `signer-${n}@example.com` };
 }
 
 /** Read straight from D1, so the assertion never runs through the writer. */
@@ -90,6 +141,120 @@ describe("POST /api/signatures", () => {
 
 		expect(response.status).toBe(409);
 		expect(await storedRows()).toHaveLength(1);
+	});
+});
+
+/**
+ * The first gate. A signature that cannot show a Turnstile token never reaches
+ * validation's verdict, the rate limiter or the database — so the assertion is
+ * always two-part: the status the caller sees, and the row that is not there.
+ */
+describe("POST /api/signatures, bot check", () => {
+	it("refuses a submission carrying no Turnstile token", async () => {
+		const response = await sign({ ...VALID, turnstileToken: undefined });
+
+		expect(response.status).toBe(403);
+		expect(await storedRows()).toEqual([]);
+	});
+
+	// A token that is present is not a token that is good. Only Cloudflare can
+	// tell the difference, so the endpoint has to have asked.
+	it("refuses a token siteverify does not approve", async () => {
+		stubSiteverify(false);
+
+		const response = await sign(VALID);
+
+		expect(response.status).toBe(403);
+		expect(await storedRows()).toEqual([]);
+	});
+
+	it("stores the signature once siteverify approves the token", async () => {
+		const siteverify = stubSiteverify(true);
+
+		const response = await sign(VALID);
+
+		expect(response.status).toBe(201);
+		expect(siteverify).toHaveBeenCalledTimes(1);
+		expect(await storedRows()).toHaveLength(1);
+	});
+});
+
+/**
+ * The second gate, and the one that costs an honest signer nothing: a person
+ * signs once, so the ceiling only binds on a machine submitting in a loop.
+ *
+ * Each test picks its own client IP, because the limiter's counters outlive a
+ * single test the way a real minute does — sharing an address between two
+ * tests would make one of them depend on the other having run.
+ */
+describe("POST /api/signatures, rate limit", () => {
+	it("lets a burst up to the ceiling through and refuses the one after it", async () => {
+		const statuses: number[] = [];
+
+		for (let attempt = 0; attempt < 6; attempt++) {
+			const response = await sign(nthSigner(attempt), "203.0.113.10");
+			statuses.push(response.status);
+		}
+
+		expect(statuses).toEqual([201, 201, 201, 201, 201, 429]);
+		expect(await storedRows()).toHaveLength(5);
+	});
+
+	// The ceiling is per address, not per deployment — otherwise one loop would
+	// stop the whole petition from collecting anything.
+	it("counts each address separately", async () => {
+		for (let attempt = 0; attempt < 5; attempt++) {
+			await sign(nthSigner(attempt), "203.0.113.20");
+		}
+
+		const other = await sign(nthSigner(99), "203.0.113.21");
+
+		expect(other.status).toBe(201);
+	});
+});
+
+/**
+ * Region attribution, which happens at insert time and is never revisited.
+ *
+ * The order is postal code, then geo-IP, then an explicit unknown bucket — and
+ * the first of those wins outright, because a self-reported postal code says
+ * where the signer lives while geo-IP says where their carrier egresses.
+ */
+describe("POST /api/signatures, voivodeship", () => {
+	/** The stored attribution, read back with SQL rather than through the writer. */
+	async function storedVoivodeship(): Promise<unknown> {
+		const [row] = await storedRows();
+		return row?.voivodeship_code;
+	}
+
+	it("lets a supplied postal code decide, even against a conflicting geo-IP", async () => {
+		await sign({ ...VALID, postalCode: "50-001" }, undefined, {
+			country: "PL",
+			regionCode: "MZ",
+		});
+
+		expect(await storedVoivodeship()).toBe("PL-DS");
+	});
+
+	it("falls back to the geo-IP region when no postal code was given", async () => {
+		await sign(VALID, undefined, { country: "PL", regionCode: "MZ" });
+
+		expect(await storedVoivodeship()).toBe("PL-MZ");
+	});
+
+	it("stores the unknown bucket when neither signal is available", async () => {
+		await sign(VALID);
+
+		expect(await storedVoivodeship()).toBe("unknown");
+	});
+
+	// Subdivision codes are unique only within a country: Lucerne is `CH-LU`
+	// and lubelskie is `PL-LU`. A signer in Switzerland must not be filed into
+	// a Polish voivodeship on a two-letter coincidence.
+	it("ignores a region reported from outside Poland", async () => {
+		await sign(VALID, undefined, { country: "CH", regionCode: "LU" });
+
+		expect(await storedVoivodeship()).toBe("unknown");
 	});
 });
 

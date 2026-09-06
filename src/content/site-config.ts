@@ -44,6 +44,19 @@ export const SITE_CONFIG = {
 	 * copy in the content files, not here.
 	 */
 	signerOrgNounGen: "organizacji",
+	/**
+	 * Turnstile site key — public by design, which is why it lives here rather
+	 * than in the Worker's secrets: the widget script reads it in the browser,
+	 * so it is served to everyone who loads the page anyway. Its secret half is
+	 * `TURNSTILE_SECRET_KEY`, which never leaves the Worker.
+	 *
+	 * What ships is Cloudflare's official always-pass **test** key: it renders
+	 * a real widget that approves every visitor, so a fresh clone signs without
+	 * a Cloudflare account. Replace it with a real one from Turnstile → Add
+	 * widget, and push the matching secret, before collecting anything real —
+	 * the README's "Turnstile keys" section is the whole procedure.
+	 */
+	turnstileSiteKey: "1x00000000000000000000AA",
 	organizerStreet: "ul. Przykładowa 1",
 	organizerCity: "00-001 Miasto",
 	organizerKrs: "0000000000",

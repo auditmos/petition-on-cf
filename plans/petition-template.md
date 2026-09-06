@@ -218,6 +218,22 @@ Harden the sign endpoint into the full trust pipeline: Turnstile widget on the f
 - [ ] Every prefix in the shipped table resolves to a real voivodeship code, and unmapped prefixes fall through to geo-IP rather than guessing — [test: table completeness check; insert with an unmapped prefix]
 - [ ] Real-key configuration path documented and consumed from secrets, never from content files — [observable: secret name in env typegen; README section]
 
+### Implementation — 2026-09-06
+
+**Status: done.** `pnpm lint`, `pnpm types`, `pnpm test` (471 tests in 39 files) and `pnpm knip` all pass. Verified by hand against `pnpm dev`: an absent token is refused 403, the test-key token stores a row, the sixth submission from one address inside a minute is refused 429 while a different address is unaffected, a `50-001` postal code stores `PL-DS`, and a browser signature through the real Turnstile widget stored `80-001` → `PL-PM`. The always-blocks key pair (`2x…`) was swapped in temporarily to watch the refusal path render, then reverted.
+
+Decisions taken while implementing, binding on later slices:
+
+- **The unknown bucket is the string `unknown`, not null.** Attribution always writes a value, so `GROUP BY voivodeship_code` yields an explicit row the DO (#7) and the map (#8) can count without either of them spelling out a null case. The column stays nullable — rows written before this slice keep their nulls, and no migration was needed.
+- **Rate limiting is Cloudflare's `ratelimits` binding**, five per minute per `CF-Connecting-IP`, declared in `wrangler.jsonc` and repeated in every env block. It is simulated locally by Miniflare — including inside `vitest-pool-workers` — so the burst test is real rather than mocked. A request that arrives with no client address shares one `unattributed` bucket; on Cloudflare that only happens if it did not come through the edge.
+- **A failed siteverify request is not a `false`.** `verifyTurnstile` returns a boolean for a verdict and lets a network failure propagate to the 500 handler, so an outage tells the signer "try again in a moment" rather than accusing them of being a robot.
+- **The geo-IP path is guarded on `country === "PL"`.** Subdivision codes are unique only within a country: Lucerne is `CH-LU` and lubelskie is `PL-LU`, and Czech subdivisions are numeric like the pre-2015 Polish ones. Without the guard a Swiss signer lands in lubelskie. The resolver also accepts the legacy numeric `regionCode` spellings, since geo databases have not all adopted the 2015 letters.
+- **The Turnstile widget is told the page's language.** Left alone the script reads the *browser's*, which rendered a Polish bot check on `/en`. `language` is drilled from the route the same way `NavigationBar` already receives it.
+
+Correction to this phase's acceptance criteria:
+
+- **"Unmapped prefixes fall through to geo-IP rather than guessing" cannot be exercised with a real postal code.** Poland uses all one hundred two-digit prefixes, so the shipped table covers `00`–`99` exactly once and no valid `NN-NNN` misses it. What shipped instead: the completeness test asserts total coverage with no gap or overlap, that every entry is one of the sixteen ISO codes, and that all sixteen are reachable, plus seventeen spot checks against known cities; the fall-through is tested at the resolver's own boundary, with input its table cannot read. The criterion as written assumed gaps that do not exist.
+
 ---
 
 ## Phase 5: Live counter

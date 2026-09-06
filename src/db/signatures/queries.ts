@@ -25,13 +25,21 @@ export type SignatureWrite = { status: "created" } | { status: "duplicate" };
  * race: two concurrent submissions both find nothing and both insert. The index
  * is the only thing that can decide, so this attempts the write and reads the
  * answer off the failure.
+ *
+ * The voivodeship arrives as its own argument rather than inside `input`
+ * because it is not something the signer submitted: the pipeline derives it
+ * from their postal code and the platform's geo-IP. Keeping it separate is
+ * what stops a crafted payload from choosing its own region.
  */
 export async function insertSignature(
 	binding: D1Database,
 	input: SignatureInput,
+	voivodeshipCode: string,
 ): Promise<SignatureWrite> {
 	try {
-		await getDb(binding).insert(signatures).values(input);
+		await getDb(binding)
+			.insert(signatures)
+			.values({ ...input, voivodeshipCode });
 		return { status: "created" };
 	} catch (error) {
 		if (isUniqueViolation(error)) return { status: "duplicate" };

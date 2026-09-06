@@ -1,9 +1,10 @@
 import { useForm } from "@tanstack/react-form";
 import { useMutation } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { TurnstileWidget } from "@/components/signature-form/turnstile-widget";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { Content } from "@/content";
+import type { Content, Language } from "@/content";
 import {
 	createSignatureInputSchema,
 	type SignatureDraft,
@@ -23,8 +24,15 @@ import {
  * with this language's copy and gets all of it.
  */
 
-/** What the endpoint said, reduced to what the form has to render. */
-type Outcome = "signed" | "duplicate";
+/**
+ * What the endpoint said, reduced to what the form has to render.
+ *
+ * The two trust-pipeline refusals are separate outcomes rather than one
+ * "rejected", because they ask the signer for different things: one is "reload
+ * and let the check finish", the other is "wait a minute". Collapsing them
+ * would mean showing at least one of them the wrong instruction.
+ */
+type Outcome = "signed" | "duplicate" | "bot-check" | "rate-limited";
 
 type SignCopy = Content["sign"];
 
@@ -46,10 +54,21 @@ const EMPTY: SignatureDraft = {
 	consentRodo: false,
 };
 
-export function SignatureForm({ copy }: { copy: SignCopy }) {
+export function SignatureForm({ copy, language }: { copy: SignCopy; language: Language }) {
 	const mutation = useMutation({ mutationFn: postSignature });
 	// One schema per set of messages, not one per keystroke.
 	const schema = useMemo(() => createSignatureInputSchema(copy.errors), [copy.errors]);
+
+	/**
+	 * The bot check's answer, which is not a field the signer fills.
+	 *
+	 * It lives beside the form state rather than in it because the form's
+	 * schema is the one the endpoint inserts with — a token in there would
+	 * have to be stripped before every write, and the two definitions of a
+	 * valid signature would have drifted apart by the second one.
+	 */
+	const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
+	const [awaitingCheck, setAwaitingCheck] = useState(false);
 
 	const form = useForm({
 		defaultValues: EMPTY,
@@ -57,6 +76,15 @@ export function SignatureForm({ copy }: { copy: SignCopy }) {
 		// written here instead would be a second definition of a valid signature.
 		validators: { onSubmit: schema },
 		onSubmit: ({ value }) => {
+			// Nothing to submit until the widget has vouched for the signer.
+			// Saying so beats posting a request the endpoint will refuse: the
+			// answer is the same, and this one arrives without a round trip.
+			if (!turnstileToken) {
+				setAwaitingCheck(true);
+				return;
+			}
+
+			setAwaitingCheck(false);
 			// Fire and forget: the outcome is rendered in place, so there is
 			// nothing to await it for — and awaiting would turn a failed request
 			// into a rejected `handleSubmit` nobody catches.
@@ -65,7 +93,7 @@ export function SignatureForm({ copy }: { copy: SignCopy }) {
 			// schema's normalisation — the trimmed lowercase e-mail that has to
 			// reach the unique index, and the blank postal code that has to
 			// reach the database as null.
-			mutation.mutate(schema.parse(value));
+			mutation.mutate({ ...schema.parse(value), turnstileToken });
 		},
 	});
 
@@ -148,9 +176,36 @@ export function SignatureForm({ copy }: { copy: SignCopy }) {
 				}}
 			</form.Field>
 
+			<div>
+				<TurnstileWidget
+					language={language}
+					onToken={(token) => {
+						setTurnstileToken(token);
+						if (token) setAwaitingCheck(false);
+					}}
+				/>
+				{awaitingCheck ? (
+					<p id="turnstile-error" role="alert" className="mt-2 text-sm text-negative">
+						{copy.errors.turnstile}
+					</p>
+				) : null}
+			</div>
+
 			{mutation.data === "duplicate" ? (
 				<output className="block rounded-lg border border-divider bg-ground p-4 text-sm text-quiet">
 					{copy.duplicate}
+				</output>
+			) : null}
+
+			{mutation.data === "bot-check" ? (
+				<output className="block rounded-lg border border-divider bg-ground p-4 text-sm text-quiet">
+					{copy.botCheckFailed}
+				</output>
+			) : null}
+
+			{mutation.data === "rate-limited" ? (
+				<output className="block rounded-lg border border-divider bg-ground p-4 text-sm text-quiet">
+					{copy.rateLimited}
 				</output>
 			) : null}
 
@@ -195,14 +250,18 @@ function firstMessage(errors: readonly unknown[]): string | undefined {
  * resolves rather than throws. Anything else throws, which is what puts the
  * mutation into its error state.
  */
-async function postSignature(input: SignatureInput): Promise<Outcome> {
+async function postSignature(
+	payload: SignatureInput & { turnstileToken: string },
+): Promise<Outcome> {
 	const response = await fetch("/api/signatures", {
 		method: "POST",
 		headers: { "content-type": "application/json" },
-		body: JSON.stringify(input),
+		body: JSON.stringify(payload),
 	});
 
 	if (response.status === 201) return "signed";
 	if (response.status === 409) return "duplicate";
+	if (response.status === 403) return "bot-check";
+	if (response.status === 429) return "rate-limited";
 	throw new Error(`Sign request failed with ${response.status}`);
 }

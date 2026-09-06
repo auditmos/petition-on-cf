@@ -30,8 +30,8 @@ it. What compensates for the missing automation is:
 - **The deploy-time secret check** described under
   [Once per environment: secrets](#once-per-environment-secrets). It is the one
   automated gate that stands between a release and a Worker that deploys
-  successfully and then fails every request — dormant while the required list is
-  empty, and back in force the moment issue #6 adds the Turnstile secret.
+  successfully and then fails every request. It is in force: the required list
+  names `TURNSTILE_SECRET_KEY`.
 
 ## Why the migration gate is deliberate
 
@@ -76,18 +76,32 @@ binding, or if its `migrations_dir` stops matching what
 
 ```jsonc
 "secrets": {
-  "required": []
+  "required": ["TURNSTILE_SECRET_KEY"]
 }
 ```
 
-Empty today, and stated rather than omitted: D1 needs no credentials, and this
-template calls no third party. The first entry will be the Turnstile secret key
-(issue #6).
+One entry. D1 needs no credentials, and Turnstile's siteverify is the only
+third party this template calls.
+
+**`TURNSTILE_SECRET_KEY` ships as Cloudflare's always-pass test secret**
+(`1x0000000000000000000000000000000AA`, in `.dev.vars.example`), which approves
+every token so that a fresh clone signs without a Cloudflare account. It is not
+a key: it is the absence of one. Before an environment collects signatures that
+matter, create a real widget in **Turnstile → Add widget**, put its site key in
+`src/content/site-config.ts` and push its secret:
+
+```bash
+wrangler secret put TURNSTILE_SECRET_KEY --env staging
+wrangler secret put TURNSTILE_SECRET_KEY --env production
+```
+
+The site key is public and belongs in the config file; the secret key is not
+and must never be committed — `src/secrets-contract.test.ts` fails the build if
+one appears outside `.dev.vars.example`.
 
 This block is **not inherited** by environment blocks — `env.staging` and
 `env.production` each repeat it, and `src/secrets-contract.test.ts` fails the
-build if they drift apart. Push a value with `wrangler secret put <NAME> --env
-staging` once there is one to push.
+build if they drift apart.
 
 **`wrangler deploy` refuses to ship when a declared secret was never set on the
 Worker, and names the ones that are missing.** That check is the safety net this

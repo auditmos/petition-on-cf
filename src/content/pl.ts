@@ -75,6 +75,9 @@ export const pl = {
 		},
 		duplicate: "Ten adres e-mail już podpisał tę petycję — nie trzeba nic więcej robić.",
 		invalidSubmission: "Nie udało się zapisać podpisu — popraw zaznaczone pola.",
+		botCheckFailed:
+			"Nie udało się potwierdzić, że podpis składa człowiek. Odśwież stronę i spróbuj ponownie.",
+		rateLimited: "Z tego adresu wysłano zbyt wiele podpisów naraz. Spróbuj ponownie za minutę.",
 		failure: "Nie udało się zapisać podpisu. Spróbuj ponownie za chwilę.",
 		errors: {
 			firstName: "Podaj imię.",
@@ -83,6 +86,7 @@ export const pl = {
 			city: "Podaj miejscowość.",
 			postalCode: "Kod pocztowy ma format 00-000.",
 			consentRodo: "Bez tej zgody nie możemy zapisać podpisu.",
+			turnstile: "Poczekaj, aż zakończy się weryfikacja zabezpieczająca przed botami.",
 			tooLong: "To pole może mieć najwyżej 100 znaków.",
 			emailTooLong: "Adres e-mail może mieć najwyżej 254 znaki.",
 		},

@@ -4,7 +4,7 @@
 
 A **template for running a public petition site** on Cloudflare Workers — one deployment = one petition, modeled on the excellent UX of [150proc.pl](https://150proc.pl/): hero → evidence with cited sources → mechanism → signature form → live counter and Poland map → public supporters list → share → FAQ.
 
-> **Status: in development.** Planning is complete; implementation is landing as vertical slices. The persistence layer and the `signatures` schema are in place; the signature form is not — see [Current state](#current-state) before running anything.
+> **Status: in development.** Planning is complete; implementation is landing as vertical slices. Signing works end to end — form, persistence, bot check, rate limit, region attribution, in Polish and English — but the live counter, the map, the supporters list and the full legal layer are still ahead. See [Current state](#current-state) before running anything.
 
 ## What this template delivers (when complete)
 
@@ -42,9 +42,9 @@ Implementation is dispatched as dependency-ordered tracer-bullet slices — each
 |---|---|---|
 | [#2](https://github.com/auditmos/petition-on-cf/issues/2) | D1 walking skeleton (Neon → D1, demo cleanup, `signatures` schema) | **landed** |
 | [#3](https://github.com/auditmos/petition-on-cf/issues/3) | Legal text capture from 150proc.pl (verbatim fixtures) — HITL | planned |
-| [#4](https://github.com/auditmos/petition-on-cf/issues/4) | Minimal sign path | planned |
-| [#5](https://github.com/auditmos/petition-on-cf/issues/5) | Content module + PL/EN routing | planned |
-| [#6](https://github.com/auditmos/petition-on-cf/issues/6) | Trust pipeline: Turnstile, rate limit, geo | planned |
+| [#4](https://github.com/auditmos/petition-on-cf/issues/4) | Minimal sign path | **landed** |
+| [#5](https://github.com/auditmos/petition-on-cf/issues/5) | Content module + PL/EN routing | **landed** |
+| [#6](https://github.com/auditmos/petition-on-cf/issues/6) | Trust pipeline: Turnstile, rate limit, geo | **landed** |
 | [#7](https://github.com/auditmos/petition-on-cf/issues/7) | Live counter DO + floating bar | planned |
 | [#8](https://github.com/auditmos/petition-on-cf/issues/8) | Voivodeship map | planned |
 | [#9](https://github.com/auditmos/petition-on-cf/issues/9) | Full legal layer | planned |
@@ -55,21 +55,24 @@ Implementation is dispatched as dependency-ordered tracer-bullet slices — each
 
 ## Current state
 
-The repo was generated from [tstack-on-cf](https://github.com/auditmos/tstack-on-cf) (TanStack Start + Hono on Workers, Drizzle, Zod, Shadcn/UI, Biome + Vitest + knip). The first slice has landed on top of it:
+The repo was generated from [tstack-on-cf](https://github.com/auditmos/tstack-on-cf) (TanStack Start + Hono on Workers, Drizzle, Zod, Shadcn/UI, Biome + Vitest + knip). Four slices have landed on top of it:
 
 - **Persistence is Cloudflare D1**, reached through Drizzle's SQLite driver behind `src/db/setup.ts`. The `signatures` table ships as a migration, and the landing page server-renders the total count from it — the number is in the first byte of HTML, not fetched afterwards.
 - **The demo `clients` domain is gone**, along with the Neon driver, its three credentials, and the seed script.
-- **No signature form yet.** The count is read-only until issue [#4](https://github.com/auditmos/petition-on-cf/issues/4); everything else on the roadmap above is still ahead.
+- **Signing works.** `POST /api/signatures` runs the full trust pipeline — validate → Turnstile → per-IP rate limit → region attribution → unique-e-mail dedup — and the form renders a distinct answer for each way it can end. Every signature stores an ISO 3166-2:PL voivodeship code derived from its postal code, or from Cloudflare's geo-IP, or the `unknown` bucket.
+- **Copy is bilingual and lives outside the components.** `/` is Polish, `/en` English.
+- **Still ahead:** the live counter and floating bar ([#7](https://github.com/auditmos/petition-on-cf/issues/7)), the voivodeship map ([#8](https://github.com/auditmos/petition-on-cf/issues/8)) — region codes are stored but not displayed — the real legal texts ([#3](https://github.com/auditmos/petition-on-cf/issues/3), [#9](https://github.com/auditmos/petition-on-cf/issues/9)), and the supporters list ([#10](https://github.com/auditmos/petition-on-cf/issues/10)).
 
 ### Working on this repo
 
-The local loop needs no Cloudflare account and no credentials — D1 runs on your machine.
+The local loop needs no Cloudflare account and no real credentials — D1 runs on your machine and the shipped Turnstile keys are Cloudflare's always-pass test pair.
 
 ```bash
 pnpm install
+cp .dev.vars.example .dev.vars   # Turnstile test secret; no account needed
 pnpm cf-typegen
-pnpm run db:migrate:dev   # applies migrations to the local D1
-pnpm dev                  # port 3000
+pnpm run db:migrate:dev          # applies migrations to the local D1
+pnpm dev                         # port 3000
 ```
 
 Read or write the local database directly with Wrangler — this is also how you seed a row to watch the counter move:
@@ -109,7 +112,9 @@ Base-stack documentation (testing projects, deploy runbook, error handling) live
 
 This template has **no auth surface, by design**. The petition site is entirely public, and an organizer reaches their own data with `wrangler d1` export queries from their machine rather than through a protected endpoint — so there is no admin panel, no account, and no password to leak.
 
-Every API route is public because every API route is meant to be. Health (`/api/health/*`) reports status. Signing (`POST /api/signatures`) is the one write path, and it is public for the same reason the form is. Its counterpart `GET /api/signatures/snapshot` returns a total and nothing else — no route reads a signature back out, and none will: the public list in issue [#10](https://github.com/auditmos/petition-on-cf/issues/10) serves only rows whose signer consented to appear. Bot protection and a per-IP rate limit on the write path arrive with issue [#6](https://github.com/auditmos/petition-on-cf/issues/6); until then a deployment of this branch is unprotected against automated submissions.
+Every API route is public because every API route is meant to be. Health (`/api/health/*`) reports status. Signing (`POST /api/signatures`) is the one write path, and it is public for the same reason the form is. Its counterpart `GET /api/signatures/snapshot` returns a total and nothing else — no route reads a signature back out, and none will: the public list in issue [#10](https://github.com/auditmos/petition-on-cf/issues/10) serves only rows whose signer consented to appear.
+
+The write path is guarded by a trust pipeline rather than by authentication: **validate → Turnstile → per-IP rate limit → region attribution → unique-e-mail dedup**, in that order. A submission without a Turnstile token, or with one Cloudflare's siteverify does not approve, is refused with 403 before it reaches the database; a sixth submission from the same address inside a minute is refused with 429. The order matters — a signer who mistyped their e-mail is told that, rather than accused of being a robot, and a machine spends a challenge before it spends a rate-limit slot. **With the shipped test keys none of this stops anything**: read the next section before you deploy.
 
 TanStack Start server functions are the one exception to "public by default": they are same-origin RPC endpoints, so `src/start.tsx` registers a CSRF middleware that answers 403 to a cross-site call. It currently guards a single read of the public count, and it does not cover `POST /api/signatures`, which is a Hono route — nor would it help there, since a site with no session cookie gains an attacker nothing they could not do from their own server. It is the default the next server function inherits.
 
@@ -119,8 +124,36 @@ Before you deploy:
 
 - Replace the placeholder `database_id` values in `wrangler.jsonc` with real ones from `wrangler d1 create`. They are all-zero and syntactically valid, so a deploy that skips this step succeeds and then fails on the first query.
 - Keep production off the workers.dev subdomain — it ships off, and a custom domain is the intended way to reach it. A guessable second URL serving the same form collects signatures under no campaign identity at all.
-- Replace the Turnstile defaults with real keys once issue [#6](https://github.com/auditmos/petition-on-cf/issues/6) lands — the shipped values will be Cloudflare's always-pass test keys, which accept every submission.
+- Replace the Turnstile test keys with real ones — see [Turnstile keys](#turnstile-keys) directly below. The shipped values accept every submission, including a script's.
 - Review the legal texts against your campaign; responsibility for their sufficiency rests with the organizer.
+
+### Turnstile keys
+
+Turnstile has two halves, and they are not interchangeable:
+
+| Key | Where it goes | Public? |
+| --- | --- | --- |
+| Site key | `turnstileSiteKey` in `src/content/site-config.ts` | Yes — the widget script reads it in the visitor's browser |
+| Secret key | `TURNSTILE_SECRET_KEY`, a Worker secret | **No** — it never leaves the Worker |
+
+What ships is Cloudflare's official **always-pass test pair** (`1x00000000000000000000AA` and `1x0000000000000000000000000000000AA`), so a fresh clone signs with no Cloudflare account and CI needs no credentials. They render a real widget and approve every visitor — they are the absence of bot protection, not bot protection.
+
+To switch to real keys, create a widget in the Cloudflare dashboard under **Turnstile → Add widget**, add your deployment's hostnames, then:
+
+```bash
+# 1. Site key — public, committed
+#    Paste it into turnstileSiteKey in src/content/site-config.ts
+
+# 2. Secret key — never committed
+pnpm exec wrangler secret put TURNSTILE_SECRET_KEY --env staging
+pnpm exec wrangler secret put TURNSTILE_SECRET_KEY --env production
+```
+
+`wrangler.jsonc` declares `TURNSTILE_SECRET_KEY` under `secrets.required` in every environment, so `wrangler deploy` refuses to ship an environment where it was never set and names it. Locally, `cp .dev.vars.example .dev.vars` is enough — the test secret in it works offline.
+
+To watch the failure path by hand, put `2x00000000000000000000AB` (Cloudflare's always-*blocks* site key) in the config and submit the form: the bot-check message appears instead of the success state.
+
+`src/secrets-contract.test.ts` fails the build if a secret key ever appears in the source, if the content files mention one, or if the Worker reads it from anywhere but its env binding.
 
 ## Planning artifacts
 

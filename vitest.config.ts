@@ -85,10 +85,21 @@ export default defineConfig({
 					cloudflareTest({
 						wrangler: { configPath: "./wrangler.jsonc" },
 						miniflare: {
-							// Not a binding the Worker has — a test fixture, delivered the
-							// only way a Node-side value can reach workerd. The D1 binding
-							// itself comes from wrangler.jsonc, as a real local database.
-							bindings: { TEST_MIGRATIONS: D1_MIGRATIONS },
+							// `TEST_MIGRATIONS` is not a binding the Worker has — it is a
+							// test fixture, delivered the only way a Node-side value can
+							// reach workerd. The D1 binding itself comes from
+							// wrangler.jsonc, as a real local database.
+							//
+							// The secret is here rather than in `.dev.vars` because that
+							// file is gitignored, so CI would run without it and every
+							// test touching the sign path would fail on a missing key.
+							// The value is Cloudflare's published always-pass test secret;
+							// no test actually reaches siteverify, which is stubbed at the
+							// boundary, so what matters is only that the binding exists.
+							bindings: {
+								TEST_MIGRATIONS: D1_MIGRATIONS,
+								TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA",
+							},
 						},
 					}),
 				],
