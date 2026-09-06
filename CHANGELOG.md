@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/auditmos/petition-on-cf/compare/v1.4.0...v1.5.0) (2026-09-06)
+
+
+### Features
+
+* **plan:** collect an optional postal code and prefer it for region ([af140d3](https://github.com/auditmos/petition-on-cf/commit/af140d34b1e87e68a8ac0209676f29d8b52e5f05))
+
 # [1.4.0](https://github.com/auditmos/petition-on-cf/compare/v1.3.0...v1.4.0) (2026-09-06)
 
 
