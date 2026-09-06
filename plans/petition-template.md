@@ -251,6 +251,23 @@ Prerequisite first: a real-browser inspection pass of 150proc.pl (it renders cli
 - [ ] Inline klauzula opens at the form with interpolated identity values — [test: E2E popup assertion]
 - [ ] Legal routes render from Markdown with zero unresolved tokens; EN side shows the Polish-only notice — [test: SSR render assertions on both routes and both languages]
 
+### Capture done — 2026-09-06 (issue #3)
+
+**Status: the prerequisite capture pass has landed; four of its findings are open decisions this phase must settle before writing the legal layer.** Fixtures, provenance, method and the full finding list are in `src/content/legal/capture/README.md`.
+
+Only tokenized fixtures are committed. No identity value from the reference campaign is stored in this repository — not its organizer's name, address or registration numbers, not its documents, and not screenshots of its site, whose recent-signatures panel shows real signers' names and towns. `src/content/legal/tokens.test.ts` fails if an e-mail address, a registration-number-shaped digit run or a bare domain ever reappears in a fixture, and `src/content/legal/tokens.ts` ships only generic placeholder identity values.
+
+What the capture changes about this phase's description above:
+
+- **The legal documents are PDFs, not pages.** The reference site links `/dokumenty/*.pdf`. Serving them as real routes stays right; the source is just a PDF rather than a page scrape.
+- **There are four consent texts, not three.** The public-list consent is rewritten for organisations. One stored flag still suffices; the rendered wording has to switch with the signer type.
+- **The toggle is `organizacja`, not `firma`, and it adds two fields** — `NAZWA ORGANIZACJI` (required) and `TWOJA FUNKCJA W ORGANIZACJI` (optional). The `signatures` schema from Phase 1 has `company_name` only. Decide here or in Phase 2 whether the role field is added or deliberately dropped; the acceptance criterion above still says "firma toggle" and needs rewording either way.
+- **Polish declension defeats naive tokenization.** The organizer's short name appears in four grammatical cases across the wording. One token cannot decline a noun, so the vocabulary carries one token per case and the site config must supply each form. Anything generating legal text from these fixtures has to pick the right case, not the nominative everywhere.
+- **Campaign-specific processing was baked into the source texts**, which is why the reference privacy policy was not kept at all and only the petition-signing clause survived from the RODO document. The general rule for this phase: a clause describing processing the deployment does not perform is worse than no clause, so whatever #9 authors must match what this template actually does. It needs its own privacy policy written here.
+- **No addressee token exists.** 150proc.pl never names its addressee in legal text, so the token vocabulary has no slot for one despite issue #3 listing it.
+
+Also observed, for phases other than this one: the live form requires a postal code (Phase 4 attributes region from geo-IP instead — a postal code is the better signal and worth reconsidering), the share row's fifth action copies a full prepared message rather than a link (Phase 9, PRD story 16 says "copy-link"), and the FAQ is a single-open accordion of eight items (Phase 9).
+
 ---
 
 ## Phase 8: Supporters list

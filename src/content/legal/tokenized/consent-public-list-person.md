@@ -1,0 +1,1 @@
+Wyrażam zgodę na publiczne udostępnienie mojego imienia, pierwszej litery nazwiska oraz miejscowości na liście osób popierających petycję „{{petitionName}}”, publikowanej w serwisie {{domain}} oraz na stronie internetowej adresata petycji.

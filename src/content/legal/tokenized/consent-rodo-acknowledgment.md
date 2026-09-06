@@ -1,0 +1,1 @@
+Potwierdzam, że zapoznałem/am się z informacją dotyczącą przetwarzania moich danych osobowych w związku z podpisaniem petycji „{{petitionName}}”, zawartą w [Klauzuli informacyjnej RODO]({{rodoClauseUrl}}) oraz [Polityce prywatności]({{privacyPolicyUrl}}).
