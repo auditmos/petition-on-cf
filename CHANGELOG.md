@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/auditmos/petition-on-cf/compare/v1.5.0...v1.6.0) (2026-09-06)
+
+
+### Features
+
+* **sign:** collect signatures, in Polish and in English ([ea8c6aa](https://github.com/auditmos/petition-on-cf/commit/ea8c6aa579acceae186662db2401b7edb1707ef6)), closes [#7](https://github.com/auditmos/petition-on-cf/issues/7) [#5](https://github.com/auditmos/petition-on-cf/issues/5) [#4](https://github.com/auditmos/petition-on-cf/issues/4) [#5](https://github.com/auditmos/petition-on-cf/issues/5)
+
 # [1.5.0](https://github.com/auditmos/petition-on-cf/compare/v1.4.0...v1.5.0) (2026-09-06)
 
 
