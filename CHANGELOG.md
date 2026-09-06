@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/auditmos/petition-on-cf/compare/v1.3.0...v1.4.0) (2026-09-06)
+
+
+### Features
+
+* **legal:** make collecting the signer's role a deployment choice ([32a089a](https://github.com/auditmos/petition-on-cf/commit/32a089ac853f0013c42fe1ab6a5aaf1702ff2a83)), closes [#3](https://github.com/auditmos/petition-on-cf/issues/3)
+
 # [1.3.0](https://github.com/auditmos/petition-on-cf/compare/v1.2.0...v1.3.0) (2026-09-06)
 
 
