@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/auditmos/petition-on-cf/compare/v1.0.0...v1.1.0) (2026-09-06)
+
+
+### Features
+
+* **db:** replace Neon Postgres with Cloudflare D1 ([61a67fb](https://github.com/auditmos/petition-on-cf/commit/61a67fba9249a7b92976c2410ee598c718731183)), closes [#2](https://github.com/auditmos/petition-on-cf/issues/2)
+
 # 1.0.0 (2026-08-31)
 
 
