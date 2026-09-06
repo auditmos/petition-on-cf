@@ -41,27 +41,32 @@ app.use('/api/*', rateLimiter())
 
 ## Request Validation
 
-Preferred: use `zValidator` from `@hono/zod-validator` with named schemas from `@/db/{domain}`.
-If `@hono/zod-validator` is not yet installed, use `safeParse` from `@/db/{domain}` schemas — never inline `z.object()`.
+Always a named schema, never an inline `z.object()` in the handler.
+
+**Where the schema lives depends on who else reads it.** A schema the browser
+also validates against — anything a form submits — belongs in `@/core/`, not in
+`@/db/{domain}`: the database barrels re-export query functions, so importing
+one from a component pulls Drizzle and the D1 driver into the client bundle.
+`src/core/signature-input.ts` is the worked example. A schema only the server
+ever sees can live with its domain.
 
 ```ts
-// Best — zValidator (when available)
-import { zValidator } from '@hono/zod-validator'
-import { SignatureCreateSchema } from '@/db/signatures'
+// Shared with a form — core, so the component can import it too
+import { signatureInputSchema } from '@/core/signature-input'
 
-app.post('/signatures',
-  zValidator('json', SignatureCreateSchema),
-  async (c) => {
-    const data = c.req.valid('json') // typed!
-  }
-)
-
-// Acceptable — safeParse with named schema
-import { SignatureCreateSchema } from '@/db/signatures'
-
-const result = SignatureCreateSchema.safeParse(await c.req.json())
-if (!result.success) return c.json({ error: 'Validation failed' }, 400)
+const parsed = signatureInputSchema.safeParse(await c.req.json())
+if (!parsed.success) {
+  return c.json({ error: 'Validation failed', details: fieldErrors(parsed.error) }, 400)
+}
 ```
+
+Report which field failed, not just that something did — the form renders the
+message beside the input. Write the messages yourself: the library's defaults
+are English and this template's pages are not.
+
+`@hono/zod-validator` is not installed. `safeParse` in the handler is the
+pattern here; add the middleware only if a slice needs it across several
+endpoints.
 
 ## Error Handling
 

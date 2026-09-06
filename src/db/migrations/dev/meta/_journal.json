@@ -8,6 +8,13 @@
       "when": 1788672245882,
       "tag": "0000_black_the_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1788694242994,
+      "tag": "0001_cooing_xorn",
+      "breakpoints": true
     }
   ]
 }

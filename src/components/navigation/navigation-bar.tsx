@@ -1,23 +1,27 @@
 import { Link } from "@tanstack/react-router";
 import { Github, Menu } from "lucide-react";
 import * as React from "react";
-import { PROJECT_LINKS } from "@/components/landing/project-links";
+import { LanguageSwitcher } from "@/components/navigation/language-switcher";
 import { ThemeToggle } from "@/components/theme";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import type { Content, Language } from "@/content";
+import { toLanguagePath } from "@/content/routing";
+import { SITE_CONFIG } from "@/content/site-config";
 
-interface NavigationItem {
-	label: string;
-	sectionId: string;
-}
-
-const navigationItems: NavigationItem[] = [
-	{ label: "Zakres szablonu", sectionId: "funkcje" },
-	{ label: "Uruchomienie", sectionId: "start" },
-	{ label: "Architektura", sectionId: "architektura" },
-];
-
-export function NavigationBar() {
+export function NavigationBar({
+	language,
+	path,
+	copy,
+	languageSwitch,
+	theme,
+}: {
+	language: Language;
+	path: string;
+	copy: Content["nav"];
+	languageSwitch: Content["languageSwitch"];
+	theme: Content["theme"];
+}) {
 	const [isOpen, setIsOpen] = React.useState(false);
 
 	const scrollToSection = (sectionId: string) => {
@@ -28,19 +32,19 @@ export function NavigationBar() {
 	return (
 		<nav className="sticky top-0 z-50 bg-brand-deep text-white">
 			<div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6 lg:h-20 lg:px-8">
-				<Link to="/" className="flex flex-col no-underline">
+				<Link to={toLanguagePath("/", language)} className="flex flex-col no-underline">
 					<span className="font-display text-lg font-semibold tracking-tight lg:text-xl">
-						petition-on-cf
+						{copy.brand}
 					</span>
 					<span className="text-[0.65rem] font-medium uppercase tracking-wider text-white/60">
-						Szablon petycji
+						{copy.tagline}
 					</span>
 				</Link>
 
 				<div className="hidden items-center gap-1 lg:flex">
-					{navigationItems.map((item) => (
+					{copy.items.map((item) => (
 						<button
-							key={item.label}
+							key={item.sectionId}
 							type="button"
 							onClick={() => scrollToSection(item.sectionId)}
 							className="rounded-md px-4 py-2 text-sm font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
@@ -50,38 +54,40 @@ export function NavigationBar() {
 					))}
 
 					<a
-						href={PROJECT_LINKS.repository}
+						href={SITE_CONFIG.repositoryUrl}
 						target="_blank"
 						rel="noopener noreferrer"
 						className="ml-2 inline-flex items-center gap-2 rounded-full border border-white/40 px-4 py-2 text-sm font-medium transition-colors hover:bg-white hover:text-brand-deep"
 					>
 						<Github className="h-4 w-4" />
-						GitHub
+						{copy.repositoryLabel}
 					</a>
 
-					<div className="ml-2 border-l border-white/20 pl-2 text-white">
-						<ThemeToggle variant="ghost" align="end" />
+					<div className="ml-2 flex items-center border-l border-white/20 pl-2 text-white">
+						<LanguageSwitcher language={language} path={path} copy={languageSwitch} />
+						<ThemeToggle copy={theme} variant="ghost" align="end" />
 					</div>
 				</div>
 
 				<div className="flex items-center gap-2 text-white lg:hidden">
-					<ThemeToggle variant="ghost" align="end" />
+					<LanguageSwitcher language={language} path={path} copy={languageSwitch} />
+					<ThemeToggle copy={theme} variant="ghost" align="end" />
 					<Sheet open={isOpen} onOpenChange={setIsOpen}>
 						<SheetTrigger asChild>
 							<Button variant="ghost" size="icon" className="h-10 w-10 hover:bg-white/10">
 								<Menu className="h-5 w-5" />
-								<span className="sr-only">Otwórz menu nawigacji</span>
+								<span className="sr-only">{copy.openMenuLabel}</span>
 							</Button>
 						</SheetTrigger>
 						<SheetContent side="right" className="w-[300px]">
 							<SheetHeader className="text-left">
-								<SheetTitle>Nawigacja</SheetTitle>
+								<SheetTitle>{copy.menuTitle}</SheetTitle>
 							</SheetHeader>
 
 							<div className="flex flex-col gap-1 px-4">
-								{navigationItems.map((item) => (
+								{copy.items.map((item) => (
 									<button
-										key={item.label}
+										key={item.sectionId}
 										type="button"
 										onClick={() => scrollToSection(item.sectionId)}
 										className="rounded-md px-4 py-3 text-left text-sm font-medium text-quiet transition-colors hover:bg-brand-soft hover:text-brand-dark"
@@ -90,14 +96,14 @@ export function NavigationBar() {
 									</button>
 								))}
 								<a
-									href={PROJECT_LINKS.repository}
+									href={SITE_CONFIG.repositoryUrl}
 									target="_blank"
 									rel="noopener noreferrer"
 									onClick={() => setIsOpen(false)}
 									className="mt-2 inline-flex items-center gap-2 rounded-md px-4 py-3 text-sm font-medium text-quiet transition-colors hover:bg-brand-soft hover:text-brand-dark"
 								>
 									<Github className="h-4 w-4" />
-									GitHub
+									{copy.repositoryLabel}
 								</a>
 							</div>
 						</SheetContent>

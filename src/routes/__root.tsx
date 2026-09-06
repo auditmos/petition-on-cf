@@ -4,14 +4,20 @@ import ibmPlexSansLatin from "@fontsource-variable/ibm-plex-sans/files/ibm-plex-
 import newsreaderLatin from "@fontsource-variable/newsreader/files/newsreader-latin-wght-normal.woff2?url";
 import type { QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { createRootRouteWithContext, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
+import {
+	createRootRouteWithContext,
+	HeadContent,
+	Outlet,
+	Scripts,
+	useRouterState,
+} from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import type * as React from "react";
 import { DefaultCatchBoundary } from "@/components/default-catch-boundary";
 import { NotFound } from "@/components/not-found";
 import { ThemeProvider } from "@/components/theme";
+import { languageFromPath } from "@/content/routing";
 import appCss from "@/styles.css?url";
-import { seo } from "@/utils/seo";
 
 export const Route = createRootRouteWithContext<{
 	queryClient: QueryClient;
@@ -25,11 +31,9 @@ export const Route = createRootRouteWithContext<{
 				name: "viewport",
 				content: "width=device-width, initial-scale=1",
 			},
-			...seo({
-				title: "petition-on-cf — szablon strony petycji na Cloudflare Workers",
-				description:
-					"Otwarty szablon strony petycji: formularz podpisu ze zgodami RODO, licznik podpisów na żywo, mapa poparcia i treści po polsku oraz po angielsku. Jedno wdrożenie to jedna petycja, w całości na Twoim koncie Cloudflare.",
-			}),
+			// Everything else in the head is per-language and per-page, so each
+			// route builds its own with `buildHead`. What is left here is what
+			// every page shares regardless of what it says.
 		],
 		links: [
 			{ rel: "stylesheet", href: appCss },
@@ -99,10 +103,14 @@ function RootComponent() {
 }
 
 function RootDocument({ children }: { children: React.ReactNode }) {
-	// Polish is the default language; Phase 3 adds the /en prefix and makes this
-	// per-route rather than fixed.
+	// The one place that has to read the language off the router rather than
+	// receive it: the document element wraps every route, so no route can set
+	// it. `languageFromPath` is the same function the switcher and the hreflang
+	// pair use, and it is tested against `/energia` not being English.
+	const pathname = useRouterState({ select: (state) => state.location.pathname });
+
 	return (
-		<html lang="pl">
+		<html lang={languageFromPath(pathname)}>
 			<head>
 				<HeadContent />
 			</head>

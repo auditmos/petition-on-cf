@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { interpolate, LEGAL_TOKENS, PLACEHOLDER_VALUES, TOKEN_PATTERN } from "./tokens";
+import { interpolate, TOKEN_PATTERN } from "@/content/tokens";
+import { LEGAL_TOKENS, PLACEHOLDER_VALUES } from "./tokens";
 
 const TOKENIZED = resolve(__dirname, "tokenized");
 

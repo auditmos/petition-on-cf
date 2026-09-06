@@ -117,6 +117,26 @@ The thinnest complete signing experience: a visitor fills first name, surname, e
 - [ ] Snapshot endpoint returns the true D1 count — [test: seed N rows, assert snapshot == N]
 - [ ] E2E: submit → success state → reload → count incremented — [test: browser E2E on local D1]
 
+### Implementation — 2026-09-06
+
+**Status: done.** `pnpm lint`, `pnpm types`, `pnpm test` (32 files) and `pnpm knip` all pass. Verified by hand in a browser against local D1: the form stores a signature, the count moves on reload, and the same address submitted again gets the "already signed" notice with the count unchanged.
+
+Decisions taken while implementing, binding on later slices:
+
+- **One schema, in `src/core/signature-input.ts`, validating on both sides.** The form and the endpoint parse the same Zod object, so they cannot drift into disagreeing about what a valid signature is. It lives in `core/` rather than in `src/db/signatures/` because that barrel re-exports query functions — importing it from a component would pull Drizzle and the D1 driver into the browser bundle. `.claude/rules/api/hono.md` was updated to say so; the inherited version pointed at `@/db/{domain}`.
+- **E-mail normalisation is trim + lowercase, and it happens in the schema.** Settled here as issue #2 planned. Normalising before the format check means a trailing space is absorbed rather than rejected, and the value that reaches the unique index is the same for `Anna@Example.COM ` as for `anna@example.com`.
+- **Dedup is the unique index's answer, never a lookup's.** `insertSignature` attempts the write and reads `isUniqueViolation` off the failure. A select-then-insert is not a check but a race: two concurrent submissions both find nothing and both insert.
+- **A duplicate is an outcome, not an error.** `insertSignature` returns `{ status: "created" } | { status: "duplicate" }`; the endpoint maps the second to 409 with its own wording, and the form renders it as a notice rather than a failure.
+- **Postal code shipped in an additive migration** (`0001_cooing_xorn.sql`, `ALTER TABLE ... ADD postal_code text`). Blank and absent both store null; a supplied value must be `NN-NNN`. Nothing reads it yet — Phase 4 does.
+- **Validation messages are Polish and written by hand**, asserted verbatim in `src/core/signature-input.test.ts`. The library's defaults ("Too small: expected string to have >=1 characters") reached the rendered page in the first browser pass, which a test asserting merely "some string" could not catch. Like the rest of the form's copy they are hard-coded until Phase 3.
+- **`@tanstack/react-form` was added** so the form follows `.claude/rules/frontend/form-patterns.md` rather than the rule being rewritten around a `useState` implementation. `useForm` + `form.Field` + `form.Subscribe`, submitting through `useMutation` with `mutate` (not `mutateAsync`, which turns a failed request into a rejected `handleSubmit` nobody catches).
+- **Snapshot returns an object, not a number.** `{ data: { total } }` so Phase 5 can add per-voivodeship counts beside `total` without changing shape on every consumer.
+
+Deviation from the E2E acceptance criterion, and why:
+
+- **There is no browser test harness in this repository** — no Playwright, no Cypress — and adding one is a toolchain decision this slice should not make on its own. What covers the criterion instead: `src/hono/api/signatures.worker.test.ts` drives the real endpoint over HTTP inside workerd against a real migrated D1, and `src/components/signature-form/signature-form.test.tsx` drives the real form through its labelled controls under jsdom with only `fetch` stubbed. The seam between them — the browser actually posting to the Worker — was walked by hand as recorded above.
+- **If that seam ever needs covering automatically**, it needs a browser runner and a built `dist/server` under Miniflare, which is the same shape as the deferred work Phase 1 recorded.
+
 ---
 
 ## Phase 3: Content module + PL/EN routing
@@ -144,6 +164,30 @@ Externalize every string and stand up bilingual routing. One Zod schema validate
 - [ ] `/` serves Polish, `/en` serves English, switcher preserves current route — [test: E2E]
 - [ ] hreflang pair + localized OG tags present on both language roots — [test: SSR response assertion]
 - [ ] Placeholder demo copy is visibly generic above the fold — [observable: fresh render shows placeholder petition name from site config]
+
+### Implementation — 2026-09-06
+
+**Status: done, with one acceptance criterion deliberately unmet — see below.** `pnpm lint`, `pnpm types`, `pnpm test` (36 files) and `pnpm knip` all pass. Verified by hand: `/` renders Polish and `/en` English with `<html lang>` following the route, the switcher moves between them client-side, both roots carry the full mutual hreflang pair with `x-default` and their own canonical, and no `{{token}}` survives into either page.
+
+Decisions taken while implementing, binding on later slices:
+
+- **`src/content/site-config.ts` is the single identity source.** The legal fixtures' `PLACEHOLDER_VALUES` is now narrowed from it rather than declared beside it, so an organizer's name is written once and reads the same in a heading and in a consent checkbox. `LEGAL_TOKENS` stays an explicit list: the config is deliberately wider than the legal vocabulary, and a fixture reaching for an interface token is a mistake that list catches.
+- **Interpolation moved up to `src/content/tokens.ts`**, shared by the UI copy and the legal fixtures. An unknown token is left standing rather than blanked — a visible `{{oops}}` gets fixed, a silent empty string is a sentence that reads fine and says the wrong thing.
+- **`getContent(language)` validates and interpolates on every read.** Both are pure work over a few kilobytes of frozen literals; a memoised singleton would buy microseconds in exchange for a cache that has to stay correct across requests on a reused isolate.
+- **Key parity is not a separate check.** Both files parse against one strict schema, so a translation missing a heading fails to parse. Repeating sections (stats, features, FAQ) are arrays even where nothing renders them, so the FAQ section will be a component change rather than a schema change.
+- **Routing is mirrored route files** — `src/routes/index.tsx` and `src/routes/en/index.tsx`, each three lines naming a language and handing it to one `LandingPage` and one `buildHead`. Every decision the two could disagree about is made somewhere they both call.
+- **Language is passed down, not read from the router**, except in the three places nothing can pass it: the document element, the not-found component and the error boundary, which use `useLanguage()`. That is what keeps components testable without a router.
+- **`src/content/routing.ts` owns the prefix arithmetic**, and `/en` is matched as a whole first segment — `/energia` is a Polish page. The switcher, the hreflang pair and `<html lang>` all call it, so the awkward cases are settled once and tested once.
+- **Validation messages became copy.** `createSignatureInputSchema(messages)` takes them from the content files; the rule is the same in every language, the sentence explaining it is not. The endpoint builds its schema with the default language and answers with `details[].field`, which is language-independent and is what a client keys off.
+- **`.claude/rules/frontend/form-patterns.md` was followed rather than rewritten**, which is why `@tanstack/react-form` is now a dependency (recorded under Phase 2).
+- **The base template's English leaked further than the landing page.** The not-found page, the error boundary and the theme control all held copy, and the error boundary mailed `support@example.com`. All three now read from the content module, and the report button mails the address in the site config.
+
+Deviations, and why:
+
+- **The demo-copy acceptance criterion is not met, by decision.** AC 5 asks for a placeholder petition name above the fold, which conflicts with this issue's own "no visual changes, only copy relocation" — the hero is template marketing, not a petition. Asked, and told to keep the marketing copy as it stands. The placeholder petition name does render, interpolated from the site config, in the sign section's heading ("Podpisz petycję „Nazwa petycji”"), so the token path is demonstrably live; it is simply not above the fold. Converting the hero into a demo petition is a deliberate later choice, most naturally alongside `init-project` in Phase 10.
+- **The switcher's `[test: E2E]` is covered without a browser harness**, as in Phase 2. `src/content/routing.test.ts` drives the path arithmetic the switcher's promise rests on, including the cases a hand-written switcher gets wrong (`/energia`, query strings, fragments, round trips); the menu itself was exercised by hand.
+- **`buildHead` is a module rather than inline route code** because `src/routes/**` is excluded from test discovery and TanStack Start's server entry cannot boot in the Workers pool. `src/content/head.test.ts` asserts the tags; the route's remaining job is the one line that calls it.
+- **`src/components/no-hardcoded-copy.test.ts` is deliberately crude** — a run of letters containing a space counts as prose — because a cleverer heuristic is one that lets the next sentence through. It skips only `src/components/ui/**` (vendored), CSS media queries, and `throw new Error(...)` messages, which are addressed to whoever wired the tree wrong rather than to a reader. Each exclusion carries its reason in the file.
 
 ---
 

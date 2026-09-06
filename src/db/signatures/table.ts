@@ -30,6 +30,13 @@ export const signatures = sqliteTable("signatures", {
 	email: text("email").notNull().unique(),
 	/** Free text, shown as given. Never matched against a dictionary of places. */
 	city: text("city").notNull(),
+	/**
+	 * `NN-NNN` when the signer gave one, null otherwise — always optional.
+	 *
+	 * Structured where `city` is not, which is what lets the trust pipeline (#6)
+	 * prefer it over geo-IP when attributing a voivodeship.
+	 */
+	postalCode: text("postal_code"),
 	signerType: text("signer_type", { enum: ["person", "company"] })
 		.notNull()
 		.default("person"),

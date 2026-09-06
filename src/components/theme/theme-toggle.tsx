@@ -7,9 +7,13 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { Content } from "@/content";
+
 import { useTheme } from "./theme-provider";
 
 interface ThemeToggleProps {
+	/** This control's labels, in the language the page is being read in. */
+	copy: Content["theme"];
 	variant?: "default" | "outline" | "ghost";
 	size?: "sm" | "default" | "lg";
 	showLabel?: boolean;
@@ -17,6 +21,7 @@ interface ThemeToggleProps {
 }
 
 export function ThemeToggle({
+	copy,
 	variant = "ghost",
 	size = "default",
 	showLabel = false,
@@ -53,21 +58,21 @@ export function ThemeToggle({
 	const themeOptions = [
 		{
 			value: "light",
-			label: "Light",
+			label: copy.options.light.label,
 			icon: Sun,
-			description: "Use light theme",
+			description: copy.options.light.description,
 		},
 		{
 			value: "dark",
-			label: "Dark",
+			label: copy.options.dark.label,
 			icon: Moon,
-			description: "Use dark theme",
+			description: copy.options.dark.description,
 		},
 		{
 			value: "system",
-			label: "System",
+			label: copy.options.system.label,
 			icon: Monitor,
-			description: "Use system theme",
+			description: copy.options.system.description,
 		},
 	] as const;
 
@@ -87,7 +92,7 @@ export function ThemeToggle({
             focus:ring-2 focus:ring-ring focus:ring-offset-2
             ${showLabel ? "gap-2" : "aspect-square"}
           `}
-					aria-label="Toggle theme"
+					aria-label={copy.label}
 				>
 					<div className="relative flex items-center justify-center">{getCurrentIcon()}</div>
 					{showLabel && (
@@ -96,7 +101,7 @@ export function ThemeToggle({
 						</span>
 					)}
 					<span className="sr-only">
-						Current theme: {theme === "system" ? `System (${resolvedTheme})` : theme}
+						{copy.label}: {themeOptions.find((option) => option.value === theme)?.label}
 					</span>
 				</Button>
 			</DropdownMenuTrigger>
@@ -163,7 +168,7 @@ export function ThemeToggle({
                 ${resolvedTheme === "dark" ? "bg-blue-500" : "bg-amber-500"}
               `}
 							/>
-							Currently using {resolvedTheme} theme
+							{copy.label}: {copy.options[resolvedTheme].label}
 						</div>
 					</div>
 				)}

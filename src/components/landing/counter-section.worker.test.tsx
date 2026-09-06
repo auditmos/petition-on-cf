@@ -1,6 +1,7 @@
 import { env } from "cloudflare:test";
 import { renderToString } from "react-dom/server";
 import { CounterSection } from "@/components/landing/counter-section";
+import { getContent } from "@/content";
 import { countSignatures } from "@/db/signatures";
 import { resetDatabase } from "@/db/test-support";
 
@@ -29,7 +30,13 @@ async function seed(count: number): Promise<void> {
 
 /** What the browser gets: the section rendered on the server, as a string. */
 async function renderCounter(): Promise<string> {
-	return renderToString(<CounterSection count={await countSignatures(env.DB)} />);
+	return renderToString(
+		<CounterSection
+			count={await countSignatures(env.DB)}
+			language="pl"
+			copy={getContent("pl").counter}
+		/>,
+	);
 }
 
 describe("landing counter, server-rendered from D1", () => {

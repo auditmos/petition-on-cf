@@ -1,38 +1,39 @@
 import { ExternalLink } from "lucide-react";
-import { PROJECT_LINKS } from "@/components/landing/project-links";
+import type { Content } from "@/content";
+import { SITE_CONFIG } from "@/content/site-config";
 
-const documents = [
-	{ name: "Repozytorium na GitHubie", href: PROJECT_LINKS.repository },
-	{ name: "Założenia projektu (PRD)", href: PROJECT_LINKS.prd },
-	{ name: "Plan wdrożenia w fazach", href: PROJECT_LINKS.plan },
-	{ name: "Zadania i postęp prac", href: PROJECT_LINKS.issues },
-];
+/** Which document each footer entry points at. Labels come from the content. */
+const HREFS = {
+	repository: SITE_CONFIG.repositoryUrl,
+	prd: SITE_CONFIG.prdUrl,
+	plan: SITE_CONFIG.planUrl,
+	issues: SITE_CONFIG.issuesUrl,
+} as const;
 
-export function Footer() {
+export function Footer({ copy }: { copy: Content["footer"] }) {
 	return (
 		<footer className="border-t border-divider bg-ground">
 			<div className="mx-auto max-w-6xl px-6 py-14 lg:px-8">
 				<div className="flex flex-col gap-10 md:flex-row md:items-start md:justify-between">
 					<div className="max-w-md">
-						<p className="text-base font-semibold text-ink">petition-on-cf</p>
-						<p className="mt-3 text-sm leading-relaxed text-quiet">
-							Szablon strony petycji na Cloudflare Workers. Rozwijany publicznie jako projekt
-							otwarty — dokumenty poniżej opisują, co powstaje i w jakiej kolejności.
-						</p>
+						<p className="text-base font-semibold text-ink">{copy.name}</p>
+						<p className="mt-3 text-sm leading-relaxed text-quiet">{copy.description}</p>
 					</div>
 
-					<nav aria-label="Dokumenty projektu">
-						<h2 className="text-xs font-medium uppercase tracking-wider text-quiet">Dokumenty</h2>
+					<nav aria-label={copy.documentsHeading}>
+						<h2 className="text-xs font-medium uppercase tracking-wider text-quiet">
+							{copy.documentsHeading}
+						</h2>
 						<ul className="mt-4 space-y-2">
-							{documents.map((document) => (
-								<li key={document.name}>
+							{copy.documents.map((document) => (
+								<li key={document.key}>
 									<a
-										href={document.href}
+										href={HREFS[document.key as keyof typeof HREFS] ?? SITE_CONFIG.repositoryUrl}
 										target="_blank"
 										rel="noopener noreferrer"
 										className="group inline-flex items-center text-sm text-quiet transition-colors hover:text-brand-dark"
 									>
-										{document.name}
+										{document.label}
 										<ExternalLink className="ml-1.5 h-3 w-3 opacity-0 transition-opacity group-hover:opacity-100" />
 									</a>
 								</li>
@@ -42,19 +43,16 @@ export function Footer() {
 				</div>
 
 				<div className="mt-12 flex flex-col gap-2 border-t border-divider pt-6 text-xs text-quiet sm:flex-row sm:items-center sm:justify-between">
+					<p>{copy.disclaimer}</p>
 					<p>
-						Odpowiedzialność za zgodność treści prawnych konkretnej kampanii spoczywa na jej
-						organizatorze.
-					</p>
-					<p>
-						Licencja{" "}
+						{copy.licenseLead}{" "}
 						<a
-							href={PROJECT_LINKS.license}
+							href={SITE_CONFIG.licenseUrl}
 							target="_blank"
 							rel="noopener noreferrer"
 							className="underline underline-offset-2 transition-colors hover:text-brand-dark"
 						>
-							MIT
+							{copy.licenseLabel}
 						</a>
 					</p>
 				</div>

@@ -6,9 +6,20 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { getContent } from "@/content";
+import { toLanguagePath } from "@/content/routing";
+import { SITE_CONFIG } from "@/content/site-config";
+import { useLanguage } from "@/content/use-language";
 
+/**
+ * Rendered by the router rather than by a route, so it reads its own language
+ * off the location. The report button opens a mail to the address in the site
+ * config — the organizer of this deployment, not the template's author.
+ */
 export function DefaultCatchBoundary({ error }: ErrorComponentProps) {
 	const router = useRouter();
+	const language = useLanguage();
+	const copy = getContent(language).errorBoundary;
 	const isRoot = useMatch({
 		strict: false,
 		select: (state) => state.id === rootRouteId,
@@ -18,17 +29,16 @@ export function DefaultCatchBoundary({ error }: ErrorComponentProps) {
 	// biome-ignore lint/suspicious/noConsole: surface route errors for debugging
 	console.error(error);
 
-	// Format error details for display
-	const errorMessage = error?.message || "An unexpected error occurred";
+	const errorMessage = error?.message || copy.fallbackMessage;
 	const errorStack = error?.stack || "";
 	const hasStack = errorStack.length > 0;
 
 	const handleReportError = () => {
-		const subject = encodeURIComponent("Error Report");
+		const subject = encodeURIComponent(copy.reportSubject);
 		const body = encodeURIComponent(
-			`An error occurred in the application:\n\nError: ${errorMessage}\n\nStack Trace:\n${errorStack}\n\nPlease describe what you were doing when this error occurred:`,
+			`${copy.reportIntro}\n\n${errorMessage}\n\n${errorStack}\n\n${copy.reportPrompt}`,
 		);
-		window.location.href = `mailto:support@example.com?subject=${subject}&body=${body}`;
+		window.location.href = `mailto:${SITE_CONFIG.contactEmail}?subject=${subject}&body=${body}`;
 	};
 
 	return (
@@ -40,33 +50,29 @@ export function DefaultCatchBoundary({ error }: ErrorComponentProps) {
 							<AlertTriangle className="h-5 w-5 text-destructive" />
 						</div>
 						<div>
-							<CardTitle className="text-xl">Something went wrong</CardTitle>
-							<p className="text-sm text-muted-foreground">
-								We encountered an unexpected error. Please try again.
-							</p>
+							<CardTitle className="text-xl">{copy.heading}</CardTitle>
+							<p className="text-sm text-muted-foreground">{copy.description}</p>
 						</div>
 					</div>
 				</CardHeader>
 
 				<CardContent className="space-y-6">
-					{/* Error Alert */}
 					<Alert variant="destructive">
 						<AlertTriangle className="h-4 w-4" />
 						<AlertDescription className="font-medium">{errorMessage}</AlertDescription>
 					</Alert>
 
-					{/* Action Buttons */}
 					<div className="flex flex-col sm:flex-row gap-3">
 						<Button onClick={() => router.invalidate()} className="flex items-center gap-2">
 							<RefreshCw className="h-4 w-4" />
-							Try Again
+							{copy.retry}
 						</Button>
 
 						{isRoot ? (
 							<Button variant="outline" asChild>
-								<Link to="/" className="flex items-center gap-2">
+								<Link to={toLanguagePath("/", language)} className="flex items-center gap-2">
 									<Home className="h-4 w-4" />
-									Go to Home
+									{copy.home}
 								</Link>
 							</Button>
 						) : (
@@ -76,12 +82,11 @@ export function DefaultCatchBoundary({ error }: ErrorComponentProps) {
 								className="flex items-center gap-2"
 							>
 								<ArrowLeft className="h-4 w-4" />
-								Go Back
+								{copy.back}
 							</Button>
 						)}
 					</div>
 
-					{/* Error Details (Collapsible) */}
 					{hasStack && (
 						<Collapsible open={showDetails} onOpenChange={setShowDetails}>
 							<CollapsibleTrigger asChild>
@@ -91,7 +96,7 @@ export function DefaultCatchBoundary({ error }: ErrorComponentProps) {
 									className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
 								>
 									<Bug className="h-4 w-4" />
-									Technical Details
+									{copy.detailsToggle}
 									<ChevronDown
 										className={`h-4 w-4 transition-transform duration-200 ${showDetails ? "rotate-180" : ""}`}
 									/>
@@ -99,7 +104,7 @@ export function DefaultCatchBoundary({ error }: ErrorComponentProps) {
 							</CollapsibleTrigger>
 							<CollapsibleContent className="space-y-2">
 								<div className="rounded-lg bg-muted p-4">
-									<h4 className="text-sm font-medium mb-2">Error Stack Trace:</h4>
+									<h4 className="text-sm font-medium mb-2">{copy.stackHeading}</h4>
 									<pre className="text-xs text-muted-foreground whitespace-pre-wrap break-words max-h-40 overflow-y-auto">
 										{errorStack}
 									</pre>
@@ -108,12 +113,9 @@ export function DefaultCatchBoundary({ error }: ErrorComponentProps) {
 						</Collapsible>
 					)}
 
-					{/* Help Section */}
 					<div className="border-t pt-4">
 						<div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-							<div className="text-sm text-muted-foreground">
-								If this error persists, please report it to our support team.
-							</div>
+							<div className="text-sm text-muted-foreground">{copy.supportNote}</div>
 							<Button
 								variant="outline"
 								size="sm"
@@ -121,7 +123,7 @@ export function DefaultCatchBoundary({ error }: ErrorComponentProps) {
 								className="flex items-center gap-2"
 							>
 								<Mail className="h-4 w-4" />
-								Report Error
+								{copy.report}
 							</Button>
 						</div>
 					</div>

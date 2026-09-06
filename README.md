@@ -107,7 +107,9 @@ Base-stack documentation (testing projects, deploy runbook, error handling) live
 
 ## Security posture
 
-This template has **no auth surface, by design**. The petition site is entirely public, and an organizer reaches their own data with `wrangler d1` export queries from their machine rather than through a protected endpoint — so there is no admin panel, no account, and no password to leak. The only API today is `/api/health/live` and `/api/health/ready`, which return status and no signer data.
+This template has **no auth surface, by design**. The petition site is entirely public, and an organizer reaches their own data with `wrangler d1` export queries from their machine rather than through a protected endpoint — so there is no admin panel, no account, and no password to leak.
+
+Every API route is public because every API route is meant to be. Health (`/api/health/*`) reports status. Signing (`POST /api/signatures`) is the one write path, and it is public for the same reason the form is. Its counterpart `GET /api/signatures/snapshot` returns a total and nothing else — no route reads a signature back out, and none will: the public list in issue [#10](https://github.com/auditmos/petition-on-cf/issues/10) serves only rows whose signer consented to appear. Bot protection and a per-IP rate limit on the write path arrive with issue [#6](https://github.com/auditmos/petition-on-cf/issues/6); until then a deployment of this branch is unprotected against automated submissions.
 
 That is a decision about what to build, not a claim that nothing needs guarding. Authentication attaches at `src/hono/factory.ts`: `createHono(...middleware)` accepts `ApiMiddleware` handlers and applies them to every route of the endpoint it builds, so a guard added there covers the whole surface instead of one handler. If you add an endpoint this template does not have, that is where it goes.
 

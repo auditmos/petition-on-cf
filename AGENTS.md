@@ -19,12 +19,12 @@ Durable decisions every slice must respect (full list in the plan header):
 
 ## Current state
 
-Issue #2 has landed: persistence is **Cloudflare D1**, the demo `clients` domain and the Neon driver are gone, and the landing page SSR-renders the signature count from the `signatures` table.
+Issues #2, #4 and #5 have landed: D1 persistence, a working sign path, and the bilingual content module.
 
-- `getDb(binding)` in `src/db/setup.ts` is the only module that imports a driver (`src/db/driver-boundary.test.ts` enforces it). Queries take the `D1Database` binding as a parameter — there is no singleton and no `initDatabase()`.
-- The local loop needs no credentials: `pnpm run db:migrate:dev` creates and migrates a local D1.
-- `wrangler.jsonc` ships all-zero placeholder `database_id` values for every environment; real ones come from `wrangler d1 create`.
-- No signature form or write path yet — issue #4. The remaining issues define the build order.
+- **Persistence** — `getDb(binding)` in `src/db/setup.ts` is the only module that imports a driver (`src/db/driver-boundary.test.ts` enforces it). Queries take the `D1Database` binding as a parameter — there is no singleton and no `initDatabase()`. The local loop needs no credentials: `pnpm run db:migrate:dev`. `wrangler.jsonc` ships all-zero placeholder `database_id` values; real ones come from `wrangler d1 create`.
+- **Sign path** — `POST /api/signatures` (validate → dedup → insert) and `GET /api/signatures/snapshot`. One schema, `createSignatureInputSchema` in `src/core/signature-input.ts`, validates in the form and again in the endpoint, taking its messages from the content files. Dedup is the unique index's answer read through `isUniqueViolation`, never a lookup. No Turnstile, rate limit or geo attribution yet — issue #6.
+- **Content and i18n** — `src/content/` is the only place copy lives. `getContent(language)` validates a per-language file against one schema and interpolates `{{tokens}}` from `site-config.ts`; `src/components/no-hardcoded-copy.test.ts` fails the build if a component holds a sentence. `/` is Polish and `/en` English, as mirrored route files delegating to one `LandingPage`; `src/content/routing.ts` owns the prefix arithmetic, and `buildHead` owns the hreflang pair and the localized OG tags.
+- Remaining issues (#6–#13) define the build order.
 
 ## Stack
 

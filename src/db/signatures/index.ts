@@ -1,1 +1,1 @@
-export { countSignatures } from "./queries";
+export { countSignatures, insertSignature } from "./queries";
