@@ -1,3 +1,10 @@
+## [1.8.1](https://github.com/auditmos/petition-on-cf/compare/v1.8.0...v1.8.1) (2026-09-06)
+
+
+### Bug Fixes
+
+* **ui:** stop the floating bar covering the end of the page ([b4c8deb](https://github.com/auditmos/petition-on-cf/commit/b4c8deb7e495872643e19cf33f59f656db991abb))
+
 # [1.8.0](https://github.com/auditmos/petition-on-cf/compare/v1.7.0...v1.8.0) (2026-09-06)
 
 
