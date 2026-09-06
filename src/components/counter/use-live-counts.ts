@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { parseSignatureCounts } from "@/core/signature-counts";
+import { parseSignatureCounts, type SignatureCounts } from "@/core/signature-counts";
 
 /** Where the counts are pushed from, and where they can be fetched instead. */
 const LIVE_PATH = "/api/live";
@@ -17,7 +17,7 @@ const SNAPSHOT_PATH = "/api/signatures/snapshot";
 const POLL_MS = 15_000;
 
 /**
- * The petition's count, kept current for as long as the page is open.
+ * The petition's counts, kept current for as long as the page is open.
  *
  * Two paths, and the page cannot tell which it is on. The socket is the real
  * one: the `LiveCounter` Durable Object pushes to every reader at once, so a
@@ -27,19 +27,21 @@ const POLL_MS = 15_000;
  * about it on screen, because a reader cannot act on the difference and a
  * warning would only make a working page look broken.
  *
- * What comes back over the wire is the full `SignatureCounts`; this returns
- * the total. The per-voivodeship split travels for the map slice (#8), and
- * this hook widens when something renders it.
+ * The whole `SignatureCounts` is returned rather than the total, because the
+ * page now has two readers of it: the headline counter, which wants the
+ * number, and the map, which wants the split. Handing them one object from one
+ * connection is what keeps the map's parts and the counter's whole from
+ * disagreeing — they cannot be updated separately if they were never separate.
  */
-export function useLiveCount(initial: number): number {
-	const [total, setTotal] = useState(initial);
+export function useLiveCounts(initial: SignatureCounts): SignatureCounts {
+	const [counts, setCounts] = useState(initial);
 
 	useEffect(() => {
 		let live = true;
 
 		/** Ignore anything that arrives after the component has gone. */
-		const apply = (counts: { total: number } | null) => {
-			if (live && counts) setTotal(counts.total);
+		const apply = (next: SignatureCounts | null) => {
+			if (live && next) setCounts(next);
 		};
 
 		let poll: ReturnType<typeof setInterval> | undefined;
@@ -89,7 +91,7 @@ export function useLiveCount(initial: number): number {
 		};
 	}, []);
 
-	return total;
+	return counts;
 }
 
 /** The socket's address, on this origin and on this origin's protocol. */
@@ -100,7 +102,7 @@ function liveUrl(): string {
 }
 
 /** Counts out of a socket frame, or nothing if the frame was not counts. */
-function readCounts(data: unknown): { total: number } | null {
+function readCounts(data: unknown): SignatureCounts | null {
 	if (typeof data !== "string") return null;
 	try {
 		return parseSignatureCounts(JSON.parse(data));

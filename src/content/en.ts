@@ -60,6 +60,32 @@ export const en = {
 		cta: "Sign the petition",
 	},
 
+	map: {
+		eyebrow: "Where the signatures come from",
+		heading: "Support across Poland",
+		note: "Colour depth shows how much a voivodeship has gathered against the strongest one — it is a comparison rather than a number, so every region's count is written out below the map. The voivodeship comes from the postal code, or from the network the signature arrived on when none was given.",
+		figureLabel: "Map of Poland, voivodeships shaded by number of signatures",
+		unknownLabel: "No voivodeship recorded",
+		regions: {
+			"PL-DS": "Lower Silesia",
+			"PL-KP": "Kuyavia-Pomerania",
+			"PL-LU": "Lublin",
+			"PL-LB": "Lubusz",
+			"PL-LD": "Łódź",
+			"PL-MA": "Lesser Poland",
+			"PL-MZ": "Mazovia",
+			"PL-OP": "Opole",
+			"PL-PK": "Subcarpathia",
+			"PL-PD": "Podlaskie",
+			"PL-PM": "Pomerania",
+			"PL-SL": "Silesia",
+			"PL-SK": "Holy Cross",
+			"PL-WN": "Warmia-Masuria",
+			"PL-WP": "Greater Poland",
+			"PL-ZP": "West Pomerania",
+		},
+	},
+
 	sign: {
 		eyebrow: "Sign",
 		heading: "Sign the “{{petitionName}}” petition",

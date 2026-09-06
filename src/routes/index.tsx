@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LandingPage } from "@/components/landing/landing-page";
 import { buildHead } from "@/content/head";
-import { fetchSignatureCount } from "@/core/functions/signature-count";
+import { fetchSignatureCounts } from "@/core/functions/signature-counts";
 
 /**
  * Polish, served without a prefix because it is the default language.
@@ -13,7 +13,7 @@ import { fetchSignatureCount } from "@/core/functions/signature-count";
 export const Route = createFileRoute("/")({
 	// Runs on the server for the first paint, so the count is in the HTML the
 	// browser receives rather than something it fetches afterwards.
-	loader: () => fetchSignatureCount(),
+	loader: () => fetchSignatureCounts(),
 	head: () => buildHead("pl", "/"),
-	component: () => <LandingPage count={Route.useLoaderData()} language="pl" path="/" />,
+	component: () => <LandingPage counts={Route.useLoaderData()} language="pl" path="/" />,
 });

@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { LandingPage } from "@/components/landing/landing-page";
 import { buildHead } from "@/content/head";
-import { fetchSignatureCount } from "@/core/functions/signature-count";
+import { fetchSignatureCounts } from "@/core/functions/signature-counts";
 
 /** English, served under `/en`. The Polish twin is `src/routes/index.tsx`. */
 export const Route = createFileRoute("/en/")({
-	loader: () => fetchSignatureCount(),
+	loader: () => fetchSignatureCounts(),
 	head: () => buildHead("en", "/"),
-	component: () => <LandingPage count={Route.useLoaderData()} language="en" path="/" />,
+	component: () => <LandingPage counts={Route.useLoaderData()} language="en" path="/" />,
 });

@@ -1,17 +1,17 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { useLiveCount } from "@/components/counter/use-live-count";
+import { useLiveCounts } from "@/components/counter/use-live-counts";
+import type { SignatureCounts } from "@/core/signature-counts";
 
 /**
  * The page's half of the live counter.
  *
  * ## Assumptions this file encodes
  *
- * - **Input** is the count the server already rendered. The hook starts there
+ * - **Input** is the counts the server already rendered. The hook starts there
  *   and never shows less than the page was painted with.
- * - **Output** is a number, not the whole payload. Per-voivodeship counts
- *   travel on the wire for the map slice (#8); nothing on this page reads them
- *   yet, and widening the hook before something does would be inventing an
- *   interface.
+ * - **Output** is the whole payload: the headline number and the split behind
+ *   it, handed on together because the counter and the map both read it and a
+ *   page that updated one without the other would contradict itself.
  * - **Boundaries**: a `WebSocket` constructor that throws outright, a socket
  *   that closes without ever delivering, a push that is not the shape it
  *   should be, and a component that unmounts mid-connection.
@@ -80,6 +80,11 @@ class FakeSocket {
 	}
 }
 
+/** The counts a page was painted with, before any region signed. */
+function signed(total: number): SignatureCounts {
+	return { total, byVoivodeship: {} };
+}
+
 /** The snapshot endpoint, answering whatever a test wants it to. */
 function stubSnapshot(total: number): ReturnType<typeof vi.fn> {
 	const stub = vi.fn(async () => Response.json({ data: { total, byVoivodeship: {} } }));
@@ -98,43 +103,53 @@ afterEach(() => {
 	vi.useRealTimers();
 });
 
-describe("useLiveCount", () => {
+describe("useLiveCounts", () => {
 	it("starts at the count the page was rendered with", () => {
-		const { result } = renderHook(() => useLiveCount(7));
+		const { result } = renderHook(() => useLiveCounts(signed(7)));
 
-		expect(result.current).toBe(7);
+		expect(result.current.total).toBe(7);
 	});
 
 	it("opens a socket against this deployment's live endpoint", () => {
-		renderHook(() => useLiveCount(0));
+		renderHook(() => useLiveCounts(signed(0)));
 
 		expect(new URL(FakeSocket.last.url).pathname).toBe("/api/live");
 	});
 
 	it("moves to the number the socket pushes", async () => {
-		const { result } = renderHook(() => useLiveCount(7));
+		const { result } = renderHook(() => useLiveCounts(signed(7)));
 
 		act(() => FakeSocket.last.push({ total: 12, byVoivodeship: { "PL-MZ": 12 } }));
 
-		await waitFor(() => expect(result.current).toBe(12));
+		await waitFor(() => expect(result.current.total).toBe(12));
+	});
+
+	// The map's half of the same push. It arrives on the same frame as the
+	// total, which is the only reason the two can never disagree.
+	it("hands on the split the push carried, not just its total", async () => {
+		const { result } = renderHook(() => useLiveCounts(signed(7)));
+
+		act(() => FakeSocket.last.push({ total: 12, byVoivodeship: { "PL-MZ": 9, "PL-PM": 3 } }));
+
+		await waitFor(() => expect(result.current.byVoivodeship).toEqual({ "PL-MZ": 9, "PL-PM": 3 }));
 	});
 
 	// A payload that is not the shape it should be is a bug somewhere, and the
 	// honest response is to keep showing the number that was verified rather
 	// than to render `undefined` where a count belongs.
 	it("keeps the number it has when a push cannot be read", async () => {
-		const { result } = renderHook(() => useLiveCount(7));
+		const { result } = renderHook(() => useLiveCounts(signed(7)));
 
 		act(() => {
 			FakeSocket.last.pushRaw("not json at all");
 			FakeSocket.last.push({ total: "many" });
 		});
 
-		await waitFor(() => expect(result.current).toBe(7));
+		await waitFor(() => expect(result.current.total).toBe(7));
 	});
 
 	it("lets go of the socket when the page goes away", () => {
-		const { unmount } = renderHook(() => useLiveCount(0));
+		const { unmount } = renderHook(() => useLiveCounts(signed(0)));
 		const socket = FakeSocket.last;
 
 		unmount();
@@ -148,24 +163,24 @@ describe("useLiveCount", () => {
  * network can all stop a WebSocket without stopping the site, and a petition
  * whose counter freezes on those networks looks broken rather than blocked.
  */
-describe("useLiveCount, when no socket can be established", () => {
+describe("useLiveCounts, when no socket can be established", () => {
 	it("polls the snapshot endpoint when the socket is refused outright", async () => {
 		FakeSocket.refuse = true;
 		const snapshot = stubSnapshot(41);
 
-		const { result } = renderHook(() => useLiveCount(7));
+		const { result } = renderHook(() => useLiveCounts(signed(7)));
 
-		await waitFor(() => expect(result.current).toBe(41));
+		await waitFor(() => expect(result.current.total).toBe(41));
 		expect(snapshot).toHaveBeenCalledWith("/api/signatures/snapshot");
 	});
 
 	it("polls after a socket closes without ever delivering", async () => {
 		stubSnapshot(23);
-		const { result } = renderHook(() => useLiveCount(7));
+		const { result } = renderHook(() => useLiveCounts(signed(7)));
 
 		act(() => FakeSocket.last.drop());
 
-		await waitFor(() => expect(result.current).toBe(23));
+		await waitFor(() => expect(result.current.total).toBe(23));
 	});
 
 	// Polling once is a retry. Polling on is the fallback — the number has to
@@ -180,7 +195,7 @@ describe("useLiveCount, when no socket can be established", () => {
 		FakeSocket.refuse = true;
 		const snapshot = stubSnapshot(1);
 
-		renderHook(() => useLiveCount(0));
+		renderHook(() => useLiveCounts(signed(0)));
 		await act(async () => {
 			await vi.advanceTimersByTimeAsync(0);
 		});
@@ -198,7 +213,7 @@ describe("useLiveCount, when no socket can be established", () => {
 		vi.useFakeTimers();
 		FakeSocket.refuse = true;
 		const snapshot = stubSnapshot(1);
-		const { unmount } = renderHook(() => useLiveCount(0));
+		const { unmount } = renderHook(() => useLiveCounts(signed(0)));
 		await act(async () => {
 			await vi.advanceTimersByTimeAsync(0);
 		});

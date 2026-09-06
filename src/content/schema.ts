@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { VOIVODESHIP_CODES } from "@/core/voivodeship";
 
 /**
  * The shape a language file has to have, for every language.
@@ -89,6 +90,28 @@ export const contentSchema = z.object({
 		/** Names the region for a reader who arrives at it by keyboard. */
 		label: line,
 		cta: line,
+	}),
+
+	/**
+	 * The map of where the signatures came from.
+	 *
+	 * `regions` is keyed by ISO 3166-2:PL rather than by a name, because the
+	 * key is the value the trust pipeline stored and the name is the thing
+	 * being translated. Keying it by the code enum also makes the record
+	 * exhaustive: a seventeenth code could not be added to the pipeline without
+	 * both language files being made to name it.
+	 */
+	map: section.extend({
+		note: line,
+		/** Names the drawing for a reader who cannot see it. */
+		figureLabel: line,
+		regions: z.record(z.enum(VOIVODESHIP_CODES), line),
+		/**
+		 * Signatures the pipeline could attribute to no voivodeship. They count
+		 * toward the total, so the map has to say they exist rather than let
+		 * sixteen regions quietly fail to add up to the headline number.
+		 */
+		unknownLabel: line,
 	}),
 
 	sign: z.object({

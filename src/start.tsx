@@ -18,7 +18,7 @@ declare module "@tanstack/react-start" {
  * compares `Sec-Fetch-Site`, then `Origin`, then `Referer` against this origin
  * and answers 403 when none of them matches.
  *
- * Today that guards one read — `fetchSignatureCount`, a public number the page
+ * Today that guards one read — `fetchSignatureCounts`, a public number the page
  * already prints — so it closes nothing that is currently open. It is here as
  * the default the next server function inherits rather than as a fix, and
  * because a template other people deploy should not ship with a security

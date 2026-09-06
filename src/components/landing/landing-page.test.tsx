@@ -8,6 +8,7 @@ import {
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { LandingPage } from "@/components/landing/landing-page";
 import { getContent } from "@/content";
+import type { SignatureCounts } from "@/core/signature-counts";
 
 /**
  * The page, assembled — specifically the two things that only exist once it is
@@ -16,13 +17,13 @@ import { getContent } from "@/content";
  *
  * ## Assumptions this file encodes
  *
- * - **Input** is the count the loader read from D1 on the server. Everything
+ * - **Input** is the counts the loader read from D1 on the server. Everything
  *   after the first paint arrives over the socket.
- * - **Output**: the counter section and the floating bar always show the same
- *   number, because they are given the same one.
+ * - **Output**: the counter section, the floating bar and the map always agree,
+ *   because one connection feeds all three the same object.
  * - **The socket and `IntersectionObserver` are stubbed** — the network and a
  *   layout jsdom does not have. Their own behaviour is covered in
- *   `use-live-count.test.tsx` and `floating-bar.test.tsx`.
+ *   `use-live-counts.test.tsx` and `floating-bar.test.tsx`.
  * - **Not covered here**: what the count looks like server-side, which
  *   `counter-section.worker.test.tsx` renders against a real D1.
  */
@@ -104,11 +105,11 @@ afterEach(() => {
  * a stand-in — they are the real thing, pointed at memory instead of at a
  * browser's history.
  */
-async function renderPage(count: number) {
+async function renderPage(counts: SignatureCounts) {
 	const rootRoute = createRootRoute({
 		component: () => (
 			<QueryClientProvider client={new QueryClient()}>
-				<LandingPage count={count} language="pl" />
+				<LandingPage counts={counts} language="pl" />
 			</QueryClientProvider>
 		),
 	});
@@ -125,9 +126,14 @@ async function renderPage(count: number) {
 
 const figure = () => screen.getByTestId("signature-count-figure").textContent;
 
+/** What the loader read from D1, for a page nobody has signed by region. */
+function signed(total: number): SignatureCounts {
+	return { total, byVoivodeship: {} };
+}
+
 describe("LandingPage, live count", () => {
 	it("paints the count the server read before any socket has said anything", async () => {
-		await renderPage(3);
+		await renderPage(signed(3));
 
 		expect(figure()).toBe("3");
 	});
@@ -135,7 +141,7 @@ describe("LandingPage, live count", () => {
 	// User story 11: signing ticks the number without a reload. The push below
 	// is what the object sends after the sign endpoint tells it about a row.
 	it("moves the visible count when the counter pushes a new one", async () => {
-		await renderPage(3);
+		await renderPage(signed(3));
 
 		act(() => FakeSocket.last.push({ total: 4, byVoivodeship: { "PL-MZ": 4 } }));
 
@@ -145,7 +151,7 @@ describe("LandingPage, live count", () => {
 	// One socket, two places the number shows. Opening a second connection for
 	// the bar would double the deployment's socket count for one number.
 	it("shows the bar the same number as the counter, from one connection", async () => {
-		await renderPage(3);
+		await renderPage(signed(3));
 		expect(FakeSocket.opened).toHaveLength(1);
 
 		act(() => FakeSocket.last.push({ total: 4, byVoivodeship: {} }));
@@ -154,11 +160,26 @@ describe("LandingPage, live count", () => {
 		await waitFor(() => expect(screen.getByTestId("floating-bar-figure").textContent).toBe("4"));
 		expect(FakeSocket.opened).toHaveLength(1);
 	});
+
+	// User story 14: the map is fed by the same push as the number, so a
+	// signature from a region reaches the map without the page reloading.
+	it("re-shades a voivodeship the moment a signature arrives from it", async () => {
+		const { container } = await renderPage({ total: 3, byVoivodeship: { "PL-MZ": 3 } });
+		const shadeOf = (code: string) =>
+			container.querySelector(`[data-region="${code}"]`)?.getAttribute("data-shade");
+
+		expect(shadeOf("PL-PM")).toBe("0");
+
+		act(() => FakeSocket.last.push({ total: 4, byVoivodeship: { "PL-MZ": 3, "PL-PM": 1 } }));
+
+		await waitFor(() => expect(shadeOf("PL-PM")).not.toBe("0"));
+		expect(figure()).toBe("4");
+	});
 });
 
 describe("LandingPage, floating bar", () => {
 	it("keeps the bar away while the reader is still on the hero", async () => {
-		await renderPage(3);
+		await renderPage(signed(3));
 
 		FakeObserver.reportAll(true);
 
@@ -166,7 +187,7 @@ describe("LandingPage, floating bar", () => {
 	});
 
 	it("brings the bar in once the hero is behind the reader", async () => {
-		await renderPage(3);
+		await renderPage(signed(3));
 
 		FakeObserver.reportAll(false);
 

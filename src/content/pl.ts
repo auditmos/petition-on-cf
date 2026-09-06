@@ -59,6 +59,32 @@ export const pl = {
 		cta: "Podpisz petycję",
 	},
 
+	map: {
+		eyebrow: "Skąd pochodzą podpisy",
+		heading: "Poparcie w całej Polsce",
+		note: "Nasycenie koloru pokazuje, jak dużo podpisów zebrało województwo w porównaniu z najsilniejszym — samo w sobie nie jest liczbą, dlatego pod mapą każdy region ma swoją wprost wypisaną. Województwo bierze się z kodu pocztowego, a gdy go nie podano, z sieci, z której przyszedł podpis.",
+		figureLabel: "Mapa Polski, województwa wycieniowane liczbą podpisów",
+		unknownLabel: "Bez przypisanego województwa",
+		regions: {
+			"PL-DS": "Dolnośląskie",
+			"PL-KP": "Kujawsko-pomorskie",
+			"PL-LU": "Lubelskie",
+			"PL-LB": "Lubuskie",
+			"PL-LD": "Łódzkie",
+			"PL-MA": "Małopolskie",
+			"PL-MZ": "Mazowieckie",
+			"PL-OP": "Opolskie",
+			"PL-PK": "Podkarpackie",
+			"PL-PD": "Podlaskie",
+			"PL-PM": "Pomorskie",
+			"PL-SL": "Śląskie",
+			"PL-SK": "Świętokrzyskie",
+			"PL-WN": "Warmińsko-mazurskie",
+			"PL-WP": "Wielkopolskie",
+			"PL-ZP": "Zachodniopomorskie",
+		},
+	},
+
 	sign: {
 		eyebrow: "Podpis",
 		heading: "Podpisz petycję „{{petitionName}}”",
