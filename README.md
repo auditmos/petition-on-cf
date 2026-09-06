@@ -111,6 +111,8 @@ This template has **no auth surface, by design**. The petition site is entirely 
 
 Every API route is public because every API route is meant to be. Health (`/api/health/*`) reports status. Signing (`POST /api/signatures`) is the one write path, and it is public for the same reason the form is. Its counterpart `GET /api/signatures/snapshot` returns a total and nothing else — no route reads a signature back out, and none will: the public list in issue [#10](https://github.com/auditmos/petition-on-cf/issues/10) serves only rows whose signer consented to appear. Bot protection and a per-IP rate limit on the write path arrive with issue [#6](https://github.com/auditmos/petition-on-cf/issues/6); until then a deployment of this branch is unprotected against automated submissions.
 
+TanStack Start server functions are the one exception to "public by default": they are same-origin RPC endpoints, so `src/start.tsx` registers a CSRF middleware that answers 403 to a cross-site call. It currently guards a single read of the public count, and it does not cover `POST /api/signatures`, which is a Hono route — nor would it help there, since a site with no session cookie gains an attacker nothing they could not do from their own server. It is the default the next server function inherits.
+
 That is a decision about what to build, not a claim that nothing needs guarding. Authentication attaches at `src/hono/factory.ts`: `createHono(...middleware)` accepts `ApiMiddleware` handlers and applies them to every route of the endpoint it builds, so a guard added there covers the whole surface instead of one handler. If you add an endpoint this template does not have, that is where it goes.
 
 Before you deploy:
