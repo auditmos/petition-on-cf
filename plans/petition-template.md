@@ -8,10 +8,11 @@ Durable decisions that apply across all phases:
 
 - **Deployment model**: one petition = one deployment. No multi-petition support anywhere in the data model or UI.
 - **Architecture style**: Cloudflare-native full stack inherited from tstack-on-cf — TanStack Start (SSR) + Hono API on Workers. D1 (SQLite, Drizzle ORM) is the **single source of truth**; one `LiveCounter` Durable Object per deployment is a cache + broadcaster only, never a write path. Write flow: Worker → D1 → fire-and-forget DO notify.
-- **Data model**: single `signatures` entity — first name, surname, e-mail (unique, dedup key), city (display-only free text), signer type (person/non-personal entity), entity name (nullable, column `company_name`), signer role in that entity (nullable), voivodeship code (from Cloudflare geo-IP `regionCode`, ISO 3166-2:PL), three consent flags (RODO acknowledgment — required; public-list consent; updates consent), created-at. Schema is petition-agnostic; no petition entity exists.
+- **Data model**: single `signatures` entity — first name, surname, e-mail (unique, dedup key), city (display-only free text), postal code (nullable, `NN-NNN`), signer type (person/non-personal entity), entity name (nullable, column `company_name`), signer role in that entity (nullable), voivodeship code (ISO 3166-2:PL, derived postal-code-first with Cloudflare `regionCode` as fallback), three consent flags (RODO acknowledgment — required; public-list consent; updates consent), created-at. Schema is petition-agnostic; no petition entity exists.
 - **Live transport**: WebSocket with DO Hibernation API, broadcasts coalesced to ~1/sec; client falls back to polling the snapshot endpoint. SSE explicitly rejected (DO duration billing).
 - **Trust pipeline**: Cloudflare Turnstile (official always-pass test keys as shipped defaults) + per-IP rate limit + unique-e-mail dedup. No e-mail verification, no e-mail provider, ever (PRD scope).
 - **Signer type wording is the deployment's choice.** A signature is either from a private person or from a non-personal entity, and the deployment picks the noun for the second: *firma*, *organizacja*, or another word that fits its campaign. `init-project` prompts for it (Phase 10). Because Polish declines nouns and the two candidates decline differently — "nazwy firmy" but "nazwy organizacji" — the config supplies the noun once per grammatical case the copy actually uses: mianownik for the toggle, dopełniacz for the name label and the public-list consent, miejscownik for the role label. The stored column stays `company_name`; the noun is presentation, not schema, and renaming it would buy a migration and nothing else.
+- **Postal code is collected, always optional, and is the preferred region signal when given.** The form asks for it; a signature without one is valid, and the column is nullable. Attribution order is postal code → geo-IP → an explicit unknown bucket. Two caveats this buys, both real: Polish postal-code prefixes follow ten postal districts centred on major cities, **not** the sixteen voivodeship borders, so mapping needs a prefix table and stays approximate near boundaries — whereas Cloudflare's `regionCode` hands back an exact ISO 3166-2:PL code for free. The trade is worth it because geo-IP is confidently wrong for mobile and VPN signers, attributing them to a carrier's egress city, while a postal code is self-reported about where the signer actually lives. It also differs from the free-text city field the PRD rejected for map use: `NN-NNN` is structured and validatable, so its lookup is deterministic rather than a guess at "Wwa". Format is validated only when the field is non-empty.
 - **The signer's role in the entity is optional, and collecting it at all is configurable.** "Twoja funkcja w organizacji" is worth asking when an association or NGO endorses and it matters who signs on its behalf; it is noise when a company signs under its own name. So the deployment decides whether the field appears, and the default follows the chosen noun — collected for *organizacja*, not for *firma*, overridable either way for a custom noun. When shown it is never required: a signature without it is valid. The column is nullable and always present, so the choice never becomes a migration.
 - **Content externalization**: zero copy in components. Identity values in a site config file (written by `init-project`); all copy in per-language content files (PL/EN) validated by one Zod schema with key parity enforced; legal texts as tokenized Markdown copied **verbatim** from 150proc.pl. Legal documents Polish-only with an EN notice.
 - **Visual design**: editorial-civic register modeled on Polish civic-data journalism (reference: openbooks.pl), accent rotated from crimson to blue. Display serif (Newsreader) for headlines and figures, IBM Plex Sans for everything else, both self-hosted latin/latin-ext only. Semantic tokens (`ink`/`paper`/`ground`/`quiet`/`divider`/`brand`) with the shadcn variables aliased onto them, so no component hardcodes a colour and re-branding is a token edit. Red and green mean outcome only, never identity. Full spec and rationale: `docs/decisions/visual-design-system.md`.
@@ -95,7 +96,7 @@ Deviation from this review's SSR requirement, and why:
 
 ### What to build
 
-The thinnest complete signing experience: a visitor fills first name, surname, e-mail, city, ticks a mandatory-consent checkbox (placeholder wording until Phase 7), submits, and sees a success state; reloading shows the count incremented. A duplicate e-mail gets a distinct, friendly "already signed" response with the count unchanged. Server side: one sign endpoint with Zod validation and unique-e-mail dedup on D1, plus a public snapshot endpoint (total count) that the page consumes — this same endpoint later becomes the polling fallback.
+The thinnest complete signing experience: a visitor fills first name, surname, e-mail, city, optionally a postal code, ticks a mandatory-consent checkbox (placeholder wording until Phase 7), submits, and sees a success state; reloading shows the count incremented. A duplicate e-mail gets a distinct, friendly "already signed" response with the count unchanged. Server side: one sign endpoint with Zod validation and unique-e-mail dedup on D1, plus a public snapshot endpoint (total count) that the page consumes — this same endpoint later becomes the polling fallback.
 
 ### Assumptions carried in
 
@@ -103,7 +104,7 @@ The thinnest complete signing experience: a visitor fills first name, surname, e
 
 ### Out of scope for this phase
 
-- No Turnstile, no rate limiting, no geo attribution (Phase 4).
+- No Turnstile, no rate limiting, no region attribution (Phase 4) — the postal code is stored, not yet used.
 - No signer-type toggle, no real consent wording, no inline klauzula (Phase 7).
 - No live updates (Phase 5); count refreshes on reload only.
 
@@ -112,6 +113,7 @@ The thinnest complete signing experience: a visitor fills first name, surname, e
 - [ ] Happy path: valid submission persists a row and returns success — [test: integration test asserts row content + response]
 - [ ] Duplicate e-mail returns "already signed" semantics, no second row — [test: integration test, count unchanged]
 - [ ] Invalid payloads (missing field, bad e-mail, unticked mandatory consent) rejected with field-level errors — [test: validation test matrix]
+- [ ] Postal code is accepted when omitted and when well-formed, rejected only when present and malformed — [test: validation matrix over empty, `NN-NNN`, and junk; empty stores null]
 - [ ] Snapshot endpoint returns the true D1 count — [test: seed N rows, assert snapshot == N]
 - [ ] E2E: submit → success state → reload → count incremented — [test: browser E2E on local D1]
 
@@ -151,7 +153,7 @@ Externalize every string and stand up bilingual routing. One Zod schema validate
 
 ### What to build
 
-Harden the sign endpoint into the full trust pipeline: Turnstile widget on the form with server-side siteverify (shipping Cloudflare's official always-pass test keys as defaults, real keys via config/secret), a per-IP rate limit on the sign endpoint, and geo attribution — each signature stores its voivodeship code from Cloudflare request metadata at insert time. Pipeline order: validate → Turnstile → rate limit → geo → dedup/insert.
+Harden the sign endpoint into the full trust pipeline: Turnstile widget on the form with server-side siteverify (shipping Cloudflare's official always-pass test keys as defaults, real keys via config/secret), a per-IP rate limit on the sign endpoint, and region attribution — each signature stores a voivodeship code at insert time, derived from its postal code when one was given and from Cloudflare request metadata otherwise. Pipeline order: validate → Turnstile → rate limit → region → dedup/insert. The postal-code path needs a prefix→voivodeship table shipped with the template; see the durable decision on why the mapping is approximate near voivodeship borders and why it still beats geo-IP.
 
 ### Assumptions carried in
 
@@ -167,7 +169,9 @@ Harden the sign endpoint into the full trust pipeline: Turnstile widget on the f
 
 - [ ] Missing/invalid Turnstile token → rejection; test-key token → pass — [test: integration tests for both paths]
 - [ ] Burst over the per-IP limit → rate-limit response; under limit → success — [test: integration test with simulated IPs]
-- [ ] New signatures carry a voivodeship code when region metadata is present, and a defined "unknown" bucket when absent — [test: insert with mocked request metadata, assert stored code]
+- [ ] A supplied postal code decides the voivodeship, overriding geo-IP even when the two disagree — [test: insert with a postal code and a conflicting mocked region, assert the postal-code answer wins]
+- [ ] Without a postal code, signatures carry the geo-IP voivodeship, and a defined "unknown" bucket when that is absent too — [test: insert with mocked request metadata, assert stored code; then with neither]
+- [ ] Every prefix in the shipped table resolves to a real voivodeship code, and unmapped prefixes fall through to geo-IP rather than guessing — [test: table completeness check; insert with an unmapped prefix]
 - [ ] Real-key configuration path documented and consumed from secrets, never from content files — [observable: secret name in env typegen; README section]
 
 ---
@@ -270,7 +274,7 @@ What the capture changes about this phase's description above:
 - **Campaign-specific processing was baked into the source texts**, which is why the reference privacy policy was not kept at all and only the petition-signing clause survived from the RODO document. The general rule for this phase: a clause describing processing the deployment does not perform is worse than no clause, so whatever #9 authors must match what this template actually does. It needs its own privacy policy written here.
 - **No addressee token exists.** 150proc.pl never names its addressee in legal text, so the token vocabulary has no slot for one despite issue #3 listing it.
 
-Also observed, for phases other than this one: the live form requires a postal code (Phase 4 attributes region from geo-IP instead — a postal code is the better signal and worth reconsidering), the share row's fifth action copies a full prepared message rather than a link (Phase 9, PRD story 16 says "copy-link"), and the FAQ is a single-open accordion of eight items (Phase 9).
+Also observed, for phases other than this one: the live form requires a postal code (**resolved:** this template collects one too but always optional, and prefers it over geo-IP — see the durable decisions and Phase 4), the share row's fifth action copies a full prepared message rather than a link (Phase 9, PRD story 16 says "copy-link"), and the FAQ is a single-open accordion of eight items (Phase 9).
 
 ---
 

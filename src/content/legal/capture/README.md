@@ -98,9 +98,11 @@ Phase 7 of `plans/petition-template.md`.
    `plans/petition-template.md`; #9 carries the additive nullable column, since
    the schema from #2 has `company_name` only.
 4. **The form asks for a postal code**, required, before the town. The PRD's
-   data model has no such field and attributes region from Cloudflare geo-IP
-   instead. Worth reconsidering in #6 — a postal code is a far better
-   voivodeship signal than geo-IP.
+   data model had no such field and attributed region from Cloudflare geo-IP
+   instead. *Resolved 2026-09-06:* the template collects one too, but always
+   **optional**, and prefers it over geo-IP when given. #6 owns the attribution
+   order and the prefix table; see the durable decisions in
+   `plans/petition-template.md` for why the mapping is approximate.
 5. **Polish declension defeats naive tokenization.** The organizer's short name
    appears in four grammatical cases. A single token cannot decline a noun, so
    the vocabulary carries one token per case and the site config has to supply
