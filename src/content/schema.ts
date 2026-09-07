@@ -68,6 +68,16 @@ export const contentSchema = z.object({
 		eyebrow: line,
 		note: line,
 		/**
+		 * Names the tempo line beside the number — "Ostatni podpis" — which the
+		 * component completes with the duration in this language's own words.
+		 *
+		 * Only the label lives here. "5 minut temu" is `Intl.RelativeTimeFormat`'s
+		 * to write, which is why no plural table is needed beside `nouns`: Polish
+		 * declines the unit as well as the noun, and a content file that spelled
+		 * both out would have to spell them out per unit.
+		 */
+		lastSignature: line,
+		/**
 		 * The noun beside the number, one form per CLDR plural category.
 		 *
 		 * Polish picks between three of these and English between two, which is

@@ -17,8 +17,9 @@ import { SIGN_SECTION_ID } from "@/components/landing/sign-section";
 import { STATS_SECTION_ID } from "@/components/landing/stats-section";
 import { SUPPORTERS_SECTION_ID } from "@/components/landing/supporters-section";
 import { getContent } from "@/content";
+import type { LiveUpdate } from "@/core/live-update";
 import type { SignatureCounts } from "@/core/signature-counts";
-import type { SupporterPage } from "@/core/supporters";
+import type { Supporter, SupporterPage } from "@/core/supporters";
 
 /**
  * The page, assembled — specifically the two things that only exist once it is
@@ -27,10 +28,10 @@ import type { SupporterPage } from "@/core/supporters";
  *
  * ## Assumptions this file encodes
  *
- * - **Input** is the counts the loader read from D1 on the server. Everything
- *   after the first paint arrives over the socket.
- * - **Output**: the counter section, the floating bar and the map always agree,
- *   because one connection feeds all three the same object.
+ * - **Input** is the counts and the first page of the list, both read from D1
+ *   on the server. Everything after the first paint arrives over the socket.
+ * - **Output**: the counter section, the floating bar, the map and the list all
+ *   agree, because one connection feeds all four the same object.
  * - **The socket and `IntersectionObserver` are stubbed** — the network and a
  *   layout jsdom does not have. Their own behaviour is covered in
  *   `use-live-counts.test.tsx` and `floating-bar.test.tsx`.
@@ -101,7 +102,11 @@ beforeEach(() => {
 	vi.stubGlobal("IntersectionObserver", FakeObserver);
 	vi.stubGlobal(
 		"fetch",
-		vi.fn(async () => Response.json({ data: { total: 0, byVoivodeship: {} } })),
+		vi.fn(async () =>
+			Response.json({
+				data: { counts: signed(0), supporters: [] },
+			}),
+		),
 	);
 });
 
@@ -141,7 +146,12 @@ const figure = () => screen.getByTestId("signature-count-figure").textContent;
 
 /** What the loader read from D1, for a page nobody has signed by region. */
 function signed(total: number): SignatureCounts {
-	return { total, byVoivodeship: {} };
+	return { total, byVoivodeship: {}, secondsSinceLastSignature: null };
+}
+
+/** One push, as the `LiveCounter` Durable Object shapes it. */
+function pushed(counts: SignatureCounts, supporters: Supporter[] = []): LiveUpdate {
+	return { counts, supporters };
 }
 
 describe("LandingPage, live count", () => {
@@ -156,7 +166,7 @@ describe("LandingPage, live count", () => {
 	it("moves the visible count when the counter pushes a new one", async () => {
 		await renderPage(signed(3));
 
-		act(() => FakeSocket.last.push({ total: 4, byVoivodeship: { "PL-MZ": 4 } }));
+		act(() => FakeSocket.last.push(pushed({ ...signed(4), byVoivodeship: { "PL-MZ": 4 } })));
 
 		await waitFor(() => expect(figure()).toBe("4"));
 	});
@@ -167,7 +177,7 @@ describe("LandingPage, live count", () => {
 		await renderPage(signed(3));
 		expect(FakeSocket.opened).toHaveLength(1);
 
-		act(() => FakeSocket.last.push({ total: 4, byVoivodeship: {} }));
+		act(() => FakeSocket.last.push(pushed(signed(4))));
 		FakeObserver.reportAll(false);
 
 		await waitFor(() => expect(screen.getByTestId("floating-bar-figure").textContent).toBe("4"));
@@ -177,13 +187,15 @@ describe("LandingPage, live count", () => {
 	// User story 14: the map is fed by the same push as the number, so a
 	// signature from a region reaches the map without the page reloading.
 	it("re-shades a voivodeship the moment a signature arrives from it", async () => {
-		const { container } = await renderPage({ total: 3, byVoivodeship: { "PL-MZ": 3 } });
+		const { container } = await renderPage({ ...signed(3), byVoivodeship: { "PL-MZ": 3 } });
 		const shadeOf = (code: string) =>
 			container.querySelector(`[data-region="${code}"]`)?.getAttribute("data-shade");
 
 		expect(shadeOf("PL-PM")).toBe("0");
 
-		act(() => FakeSocket.last.push({ total: 4, byVoivodeship: { "PL-MZ": 3, "PL-PM": 1 } }));
+		act(() =>
+			FakeSocket.last.push(pushed({ ...signed(4), byVoivodeship: { "PL-MZ": 3, "PL-PM": 1 } })),
+		);
 
 		await waitFor(() => expect(shadeOf("PL-PM")).not.toBe("0"));
 		expect(figure()).toBe("4");
@@ -316,6 +328,42 @@ describe("LandingPage, hero call to action", () => {
  * than fetched after hydration the way the rest of the list is.
  */
 describe("LandingPage, supporters", () => {
+	// User story 15 meeting user story 11: one signature, and the two halves of
+	// the page that report it do so in the same update. The counter counts it
+	// because it is a signature; the list names it because its signer agreed to
+	// be named. Nothing arranges that here — the object sends both in one frame.
+	it("adds a name and moves the count in one push", async () => {
+		await renderPage(signed(3));
+
+		act(() =>
+			FakeSocket.last.push(pushed(signed(4), [{ id: "id-ewa", name: "Ewa W.", city: "Gdańsk" }])),
+		);
+
+		await waitFor(() => expect(screen.getByText("Ewa W., Gdańsk")).not.toBeNull());
+		expect(figure()).toBe("4");
+	});
+
+	// The other half of the seam, and the one the issue says reads as intended
+	// rather than as a contradiction: a signature whose signer declined moves
+	// the number and leaves the list alone.
+	it("moves the count for a signature that brought no name with it", async () => {
+		await renderPage(signed(3), {
+			supporters: [{ id: "id-anna", name: "Anna K.", city: "Warszawa" }],
+			nextCursor: null,
+		});
+
+		act(() => FakeSocket.last.push(pushed(signed(4))));
+
+		await waitFor(() => expect(figure()).toBe("4"));
+		const list = document.getElementById(SUPPORTERS_SECTION_ID);
+		if (!list) throw new Error("the page rendered no supporters section");
+		expect(
+			within(list)
+				.getAllByRole("listitem")
+				.map((item) => item.textContent),
+		).toEqual(["Anna K., Warszawa"]);
+	});
+
 	it("shows the supporters the server read, without asking for them again", async () => {
 		await renderPage(signed(1), {
 			supporters: [{ id: "id-anna", name: "Anna K.", city: "Warszawa" }],

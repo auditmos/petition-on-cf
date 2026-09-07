@@ -5,7 +5,7 @@ import { createSignatureInputSchema } from "@/core/signature-input";
 import { decodeSupporterCursor } from "@/core/supporters";
 import { verifyTurnstile } from "@/core/turnstile";
 import { resolveVoivodeship } from "@/core/voivodeship";
-import { insertSignature, readSignatureCounts, readSupporters } from "@/db/signatures";
+import { insertSignature, readLiveUpdate, readSupporters } from "@/db/signatures";
 import { createHono } from "@/hono/factory";
 import { liveCounter } from "@/live";
 
@@ -146,25 +146,34 @@ signaturesEndpoint.post("/", async (c) => {
 });
 
 /**
- * The public counts, and the page's fallback when no socket can be opened.
+ * The public state of the petition, and the page's fallback when no socket can
+ * be opened.
  *
  * It reads D1 rather than the `LiveCounter` Durable Object deliberately: this
  * is what the page polls when the live path is unavailable, so routing it
  * through the DO would put the fallback in the same failure domain as the
- * thing it is a fallback for. The cost is a count query per poll, which is
- * what a fallback is allowed to cost.
+ * thing it is a fallback for. The cost is two queries per poll, which is what
+ * a fallback is allowed to cost.
+ *
+ * It answers with exactly what the socket pushes, names included. A fallback
+ * that carried only the numbers would leave the readers who most need it — the
+ * ones behind a proxy that strips upgrades — watching a counter move beside a
+ * list that never does. Unlike the object, this has no memory of what any
+ * caller has already seen, so it always sends the newest few and the page
+ * discards the ones it is already showing.
  */
 signaturesEndpoint.get("/snapshot", async (c) => {
-	return c.json({ data: await readSignatureCounts(c.env.DB) });
+	return c.json({ data: await readLiveUpdate(c.env.DB) });
 });
 
 /**
  * The people who agreed to be named, a page at a time.
  *
- * Deliberately not live, and deliberately not on the socket: the counter moves
- * by one and the list moves by a whole row, so pushing it would rewrite what a
- * reader is in the middle of reading. It is read once when the page loads and
- * again only when the reader asks for more.
+ * This is the walk backwards through the list, not the live edge of it: the
+ * first page is server-rendered, new names arrive over the connection that
+ * already carries the counts, and this answers the reader who asks to see
+ * further back. The cursor names a row rather than an offset, so names
+ * arriving above the walk while it is in progress cannot shift it.
  *
  * The one parameter is a cursor this endpoint issued. A cursor it did not
  * issue is a request nobody's browser made, so it is refused rather than

@@ -1,4 +1,5 @@
 import { createExecutionContext, env, waitOnExecutionContext } from "cloudflare:test";
+import type { LiveUpdate } from "@/core/live-update";
 import type { SignatureCounts } from "@/core/signature-counts";
 import { resetDatabase } from "@/db/test-support";
 import { apiHono } from "@/hono/api";
@@ -267,7 +268,7 @@ describe("POST /api/signatures, rejected", () => {
  * connection renders the same object it was rendering a moment earlier.
  */
 describe("GET /api/signatures/snapshot", () => {
-	async function snapshot(): Promise<SignatureCounts> {
+	async function snapshot(): Promise<LiveUpdate> {
 		const ctx = createExecutionContext();
 		const response = await apiHono.fetch(
 			new Request("https://example.com/api/signatures/snapshot"),
@@ -276,19 +277,46 @@ describe("GET /api/signatures/snapshot", () => {
 		);
 		await waitOnExecutionContext(ctx);
 		expect(response.status).toBe(200);
-		const body = (await response.json()) as { data: SignatureCounts };
+		const body = (await response.json()) as { data: LiveUpdate };
 		return body.data;
 	}
 
+	/** The counts alone, without the tempo a test cannot pin. */
+	async function counts(): Promise<Pick<SignatureCounts, "total" | "byVoivodeship">> {
+		const { counts: read } = await snapshot();
+		return { total: read.total, byVoivodeship: read.byVoivodeship };
+	}
+
 	it("reports zero on a freshly migrated database", async () => {
-		expect(await snapshot()).toEqual({ total: 0, byVoivodeship: {} });
+		expect(await counts()).toEqual({ total: 0, byVoivodeship: {} });
 	});
 
 	it("reports the number of rows D1 actually holds", async () => {
 		await sign(VALID);
 		await sign({ ...VALID, email: "jan@example.com" });
 
-		expect(await snapshot()).toEqual(expect.objectContaining({ total: 2 }));
+		expect(await counts()).toEqual(expect.objectContaining({ total: 2 }));
+	});
+
+	// The page falls back to this endpoint when no socket can be opened, and a
+	// reader on that path has to receive the names too — otherwise the one
+	// network where the list stays frozen is the one this issue exists to fix.
+	it("carries the newest published names, as the socket does", async () => {
+		await sign({ ...VALID, consentPublicList: true });
+
+		expect((await snapshot()).supporters).toEqual([expect.objectContaining({ name: "Anna K." })]);
+	});
+
+	// Statelessly: this endpoint cannot know what a poller has already seen, so
+	// it always answers with the newest names and the page discards the ones it
+	// is already showing.
+	it("names a signer who declined publication in the count and nowhere else", async () => {
+		await sign({ ...VALID, consentPublicList: false });
+
+		const answer = await snapshot();
+
+		expect(answer.counts.total).toBe(1);
+		expect(answer.supporters).toEqual([]);
 	});
 
 	// The map (#8) is the consumer, and it needs the split rather than the
@@ -300,7 +328,7 @@ describe("GET /api/signatures/snapshot", () => {
 		await sign({ ...VALID, email: "ewa@example.com", postalCode: "80-001" });
 		await sign({ ...VALID, email: "olga@example.com" });
 
-		expect(await snapshot()).toEqual({
+		expect(await counts()).toEqual({
 			total: 4,
 			byVoivodeship: { "PL-DS": 2, "PL-PM": 1, unknown: 1 },
 		});
@@ -318,7 +346,7 @@ describe("GET /api/signatures/snapshot", () => {
  */
 describe("POST /api/signatures, live counter", () => {
 	/** A socket on the deployment's real counter, opened the way the page does. */
-	async function watch(): Promise<{ first: Promise<unknown>; next: () => Promise<unknown> }> {
+	async function watch(): Promise<{ first: Promise<LiveUpdate>; next: () => Promise<LiveUpdate> }> {
 		const ctx = createExecutionContext();
 		const response = await apiHono.fetch(
 			new Request("https://example.com/api/live", { headers: { Upgrade: "websocket" } }),
@@ -331,11 +359,13 @@ describe("POST /api/signatures, live counter", () => {
 		if (!socket) throw new Error("upgrade produced no socket");
 		socket.accept();
 
-		const next = () =>
+		const next = (): Promise<LiveUpdate> =>
 			new Promise((resolve) => {
-				socket.addEventListener("message", (event) => resolve(JSON.parse(String(event.data))), {
-					once: true,
-				});
+				socket.addEventListener(
+					"message",
+					(event) => resolve(JSON.parse(String(event.data)) as LiveUpdate),
+					{ once: true },
+				);
 			});
 
 		return { first: next(), next };
@@ -356,7 +386,9 @@ describe("POST /api/signatures, live counter", () => {
 
 		expect((await sign({ ...VALID, postalCode: "00-950" })).status).toBe(201);
 
-		expect(await pushed).toEqual({ total: 1, byVoivodeship: { "PL-MZ": 1 } });
+		expect((await pushed).counts).toEqual(
+			expect.objectContaining({ total: 1, byVoivodeship: { "PL-MZ": 1 } }),
+		);
 	});
 
 	it("stores the signature even when the counter cannot be told", async () => {

@@ -1,5 +1,6 @@
 import { and, count, desc, eq, isNotNull, lt, ne, or, sql } from "drizzle-orm";
 import { isUniqueViolation } from "@/core/errors";
+import type { LiveUpdate } from "@/core/live-update";
 import type { SignatureCounts } from "@/core/signature-counts";
 import type { SignatureInput } from "@/core/signature-input";
 import {
@@ -22,22 +23,51 @@ import { signatures } from "./table";
 const bucket = sql<string>`coalesce(${signatures.voivodeshipCode}, ${UNKNOWN_VOIVODESHIP})`;
 
 /**
- * How many have signed, and from where. D1 is the source of truth for both.
+ * How long ago this group's newest row was stored, by the database's clock.
+ *
+ * A duration rather than the instant itself, and that is the whole point: an
+ * instant has to be subtracted from a clock wherever it is read, and where this
+ * one is read is a browser. A reader whose machine is an hour out of true would
+ * be told a signature from a minute ago arrived an hour back — or, if their
+ * clock runs slow, that the next one has already arrived. A duration measured
+ * here is the same number on every machine that receives it.
+ */
+const sinceNewest = sql<number | null>`unixepoch() - max(${signatures.createdAt})`;
+
+/**
+ * How many have signed, from where, and how long ago the last one did. D1 is
+ * the source of truth for all three.
  *
  * One `GROUP BY` rather than a count and a second query beside it, so the
  * total can never disagree with the sum of its parts — which is exactly the
- * disagreement a map with a headline number above it would put on screen.
+ * disagreement a map with a headline number above it would put on screen. The
+ * tempo rides along for the same reason it costs nothing: it is an aggregate
+ * over rows this query is already visiting.
+ *
+ * The smallest per-group duration is the newest signature overall, and every
+ * group is asked — a signature the counter counts is a signature the tempo
+ * reports, whatever its signer decided about being named.
  */
 export async function readSignatureCounts(binding: D1Database): Promise<SignatureCounts> {
 	const rows = await getDb(binding)
-		.select({ code: bucket, signed: count() })
+		.select({ code: bucket, signed: count(), since: sinceNewest })
 		.from(signatures)
 		.groupBy(bucket);
 
-	const counts: SignatureCounts = { total: 0, byVoivodeship: {} };
+	const counts: SignatureCounts = { total: 0, byVoivodeship: {}, secondsSinceLastSignature: null };
 	for (const row of rows) {
 		counts.total += row.signed;
 		counts.byVoivodeship[row.code] = row.signed;
+
+		// Clamped, because the column is also written by hand and a row dated
+		// into the future would otherwise be reported as arriving in it.
+		const since = row.since === null ? null : Math.max(0, row.since);
+		if (
+			since !== null &&
+			(counts.secondsSinceLastSignature === null || since < counts.secondsSinceLastSignature)
+		) {
+			counts.secondsSinceLastSignature = since;
+		}
 	}
 	return counts;
 }
@@ -178,4 +208,35 @@ export async function readSupporters(
 				})
 			: null,
 	};
+}
+
+/**
+ * How many published names one live update may carry.
+ *
+ * Every push reaches every open page, including the heartbeat that fires when
+ * nothing has happened, so what travels needs a ceiling that does not grow with
+ * the petition. Five names is roughly four hundred bytes beside a payload that
+ * is two hundred today — enough that a page which has been open through a burst
+ * catches up, small enough that the cost of watching stays flat.
+ */
+export const LIVE_SUPPORTERS = 5;
+
+/**
+ * Everything a watching page needs after a signature lands: the counts, and the
+ * newest names that are allowed to be shown.
+ *
+ * Both the Durable Object and the snapshot endpoint read through here, so the
+ * socket and the polling fallback cannot drift into carrying different things
+ * — which is the failure that would leave a reader on a blocked network with a
+ * moving number beside a frozen list.
+ *
+ * The names come from `readSupporters` and are sliced afterwards rather than
+ * asked for by the dozen. That query owns the consent gate and the redaction,
+ * and this is not a second place where either could be got wrong; a page of
+ * rows to take five from is what it costs to keep it that way.
+ */
+export async function readLiveUpdate(binding: D1Database): Promise<LiveUpdate> {
+	const [counts, page] = await Promise.all([readSignatureCounts(binding), readSupporters(binding)]);
+
+	return { counts, supporters: page.supporters.slice(0, LIVE_SUPPORTERS) };
 }

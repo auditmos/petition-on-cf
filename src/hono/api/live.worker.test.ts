@@ -1,5 +1,5 @@
 import { createExecutionContext, env, waitOnExecutionContext } from "cloudflare:test";
-import type { SignatureCounts } from "@/core/signature-counts";
+import type { LiveUpdate } from "@/core/live-update";
 import { resetDatabase } from "@/db/test-support";
 import { apiHono } from "@/hono/api";
 import { LIVE_COUNTER_NAME } from "@/live";
@@ -26,7 +26,7 @@ async function request(headers: HeadersInit = {}): Promise<Response> {
 }
 
 /** The socket a browser would end up holding, and its first push. */
-async function connect(): Promise<{ socket: WebSocket; first: Promise<SignatureCounts> }> {
+async function connect(): Promise<{ socket: WebSocket; first: Promise<LiveUpdate> }> {
 	const response = await request({ Upgrade: "websocket" });
 	expect(response.status).toBe(101);
 
@@ -34,10 +34,10 @@ async function connect(): Promise<{ socket: WebSocket; first: Promise<SignatureC
 	if (!socket) throw new Error("upgrade produced no socket");
 	socket.accept();
 
-	const first = new Promise<SignatureCounts>((resolve) => {
+	const first = new Promise<LiveUpdate>((resolve) => {
 		socket.addEventListener(
 			"message",
-			(event) => resolve(JSON.parse(String(event.data)) as SignatureCounts),
+			(event) => resolve(JSON.parse(String(event.data)) as LiveUpdate),
 			{ once: true },
 		);
 	});
@@ -61,7 +61,9 @@ describe("GET /api/live", () => {
 
 		const { first } = await connect();
 
-		expect(await first).toEqual({ total: 2, byVoivodeship: { "PL-MZ": 2 } });
+		expect((await first).counts).toEqual(
+			expect.objectContaining({ total: 2, byVoivodeship: { "PL-MZ": 2 } }),
+		);
 	});
 
 	// Two readers on one petition are two sockets on one object. If the routing
@@ -78,10 +80,9 @@ describe("GET /api/live", () => {
 		await storeSignature("ewa@example.com");
 		await notifyCounter();
 
-		expect(await bothSaw).toEqual([
-			{ total: 1, byVoivodeship: { "PL-MZ": 1 } },
-			{ total: 1, byVoivodeship: { "PL-MZ": 1 } },
-		]);
+		const pushes = await bothSaw;
+
+		expect(pushes.map((push) => push.counts.total)).toEqual([1, 1]);
 	});
 
 	// A browser that asks for the page rather than for the protocol gets told
@@ -92,11 +93,11 @@ describe("GET /api/live", () => {
 });
 
 /** The next push on an already-open socket. */
-function nextMessage(socket: WebSocket): Promise<SignatureCounts> {
+function nextMessage(socket: WebSocket): Promise<LiveUpdate> {
 	return new Promise((resolve) => {
 		socket.addEventListener(
 			"message",
-			(event) => resolve(JSON.parse(String(event.data)) as SignatureCounts),
+			(event) => resolve(JSON.parse(String(event.data)) as LiveUpdate),
 			{ once: true },
 		);
 	});

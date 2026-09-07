@@ -8,13 +8,14 @@ import type { SupporterPage } from "@/core/supporters";
  *
  * ## Assumptions this file encodes
  *
- * - **Input**: the first page, server-rendered into the route's loader data,
- *   and this language's copy. Every later page is fetched by this component.
+ * - **Input**: the first page, server-rendered into the route's loader data;
+ *   the names that have arrived over the live connection since; and this
+ *   language's copy. Every later page is fetched by this component.
  * - **Output**: one line per supporter — the name the server published, and
- *   the town beside it when there is one — plus a button for the next page,
- *   and only while there is one.
+ *   the town beside it when there is one — arrivals above the loaded pages,
+ *   each row once, plus a button for the next page while there is one.
  * - **Boundaries**: an empty list, a single page, a next page that fails to
- *   arrive.
+ *   arrive, an arrival that repeats a row already on screen.
  * - **`fetch` is stubbed**, because it is the boundary: what the endpoint puts
  *   in the response is `signatures-supporters.worker.test.ts`'s subject, and
  *   what this component does with it is this file's.
@@ -163,5 +164,116 @@ describe("SupportersSection, the next page", () => {
 		);
 		expect(screen.getAllByRole("listitem")).toHaveLength(1);
 		expect(loadMore()).not.toBeNull();
+	});
+});
+
+/**
+ * The names that arrive while the page is open.
+ *
+ * They come down the connection that already carries the counts, so this
+ * component neither opens anything nor asks for anything — it is handed what
+ * has arrived and decides what to do with it. What it decides is the whole of
+ * this describe: newest first, above what was already there, and each row once.
+ *
+ * Once is not a nicety. A push carries what its sender believes is new, and
+ * neither sender can be certain — the Durable Object forgets what it sent when
+ * it is evicted, and the snapshot endpoint never knew. The id is what settles
+ * it, and it has to settle it against the loaded pages too.
+ */
+describe("SupportersSection, names that arrive", () => {
+	const ARRIVED = { id: "id-ewa", name: "Ewa W.", city: "Gdańsk" };
+
+	const listed = () => screen.getAllByRole("listitem").map((item) => item.textContent);
+
+	it("puts a name that arrived above the ones the page was rendered with", () => {
+		render(<SupportersSection page={firstPage()} arrivals={[ARRIVED]} copy={COPY.supporters} />);
+
+		expect(listed()).toEqual(["Ewa W., Gdańsk", "Anna K., Warszawa"]);
+	});
+
+	it("shows arrivals rather than the empty notice on a petition nobody had signed", () => {
+		render(
+			<SupportersSection
+				page={firstPage({ supporters: [] })}
+				arrivals={[ARRIVED]}
+				copy={COPY.supporters}
+			/>,
+		);
+
+		expect(listed()).toEqual(["Ewa W., Gdańsk"]);
+		expect(screen.queryByText(COPY.supporters.empty)).toBeNull();
+	});
+
+	it("lists a name once when a push repeats one already on screen", () => {
+		render(<SupportersSection page={firstPage()} arrivals={[PERSON]} copy={COPY.supporters} />);
+
+		expect(listed()).toEqual(["Anna K., Warszawa"]);
+	});
+});
+
+/**
+ * The two halves together: names arriving at the top while the reader walks
+ * backwards through the rest.
+ *
+ * They are independent by construction — the cursor names a row rather than an
+ * offset, so a row inserted above the walk is simply outside it — and these
+ * assert that nothing in the component undoes that.
+ */
+describe("SupportersSection, arrivals and the next page", () => {
+	const NEXT = { id: "id-piotr", name: "Piotr N.", city: "Kraków" };
+	const ARRIVED = { id: "id-ewa", name: "Ewa W.", city: "Gdańsk" };
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
+	function answerWith(page: SupporterPage): void {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async () => Response.json({ data: page })),
+		);
+	}
+
+	const listed = () => screen.getAllByRole("listitem").map((item) => item.textContent);
+
+	it("still walks the rest of the list after names have arrived", async () => {
+		answerWith({ supporters: [NEXT], nextCursor: null });
+		render(
+			<SupportersSection
+				page={firstPage({ nextCursor: "500.the-cursor" })}
+				arrivals={[ARRIVED]}
+				copy={COPY.supporters}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: COPY.supporters.loadMore }));
+
+		await waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(3));
+		expect(listed()).toEqual(["Ewa W., Gdańsk", "Anna K., Warszawa", "Piotr N., Kraków"]);
+	});
+
+	// The awkward case the issue names: a row the reader pulled up through
+	// *Pokaż więcej* and the connection then pushes at them anyway.
+	it("lists a name once when a push repeats one the reader loaded", async () => {
+		answerWith({ supporters: [NEXT], nextCursor: null });
+		const { rerender } = render(
+			<SupportersSection
+				page={firstPage({ nextCursor: "500.the-cursor" })}
+				copy={COPY.supporters}
+			/>,
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: COPY.supporters.loadMore }));
+		await waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(2));
+
+		rerender(
+			<SupportersSection
+				page={firstPage({ nextCursor: "500.the-cursor" })}
+				arrivals={[NEXT]}
+				copy={COPY.supporters}
+			/>,
+		);
+
+		expect(listed()).toEqual(["Anna K., Warszawa", "Piotr N., Kraków"]);
 	});
 });

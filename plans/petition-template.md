@@ -403,7 +403,7 @@ Also observed, for phases other than this one: the live form requires a postal c
 
 ### What to build
 
-The consent-gated public supporters list: a paginated section showing only signers who ticked the public-list consent — "Imię N., Miejscowość" for persons, the entity name for non-personal signers — newest first, fetched from D1 per page (deliberately not live). A seeded non-consenting signer must never appear in any page of results.
+The consent-gated public supporters list: a paginated section showing only signers who ticked the public-list consent — "Imię N., Miejscowość" for persons, the entity name for non-personal signers — newest first, fetched from D1 per page (not live — reversed by #15, see below). A seeded non-consenting signer must never appear in any page of results.
 
 ### Assumptions carried in
 
@@ -411,7 +411,7 @@ The consent-gated public supporters list: a paginated section showing only signe
 
 ### Out of scope for this phase
 
-- No live-stream updates to the list (PRD decision D6).
+- No live-stream updates to the list (PRD decision D6 — reversed on 2026-09-07 by issue #15, which is where the live list actually landed).
 - No search/filter within the list.
 
 ### Acceptance criteria
@@ -431,8 +431,23 @@ Decisions taken while implementing, binding on later slices:
 - **The redaction is in the SELECT.** The query asks for `substr(surname, 1, 1)`, so the surname never leaves D1 — the guarantee is structural rather than a field somebody remembers to drop. Uppercasing happens in JavaScript because SQLite's `upper()` is ASCII-only and would return `ł` unchanged.
 - **A page size the client cannot name.** 24, fixed in `queries.ts`. A `limit` parameter is a way to ask for the whole list in one request, which is the shape the endpoint exists to avoid. One extra row is fetched per page to decide whether a next page exists, rather than a second `count(*)` that could disagree with the rows under a concurrent insert.
 - **A non-personal signer with no `company_name` is excluded, not coalesced.** The sign endpoint cannot create such a row, but the database is also written by hand, and a blank line on a public page is worse than an absent one.
-- **The list is the one part of the page on no socket.** The counter moves by one and the list moves by a whole row; pushing it would rewrite what a reader is in the middle of reading. The first page is server-rendered from the loader alongside the counts, and the section fetches every page after it.
+- ~~**The list is the one part of the page on no socket.**~~ **Reversed on 2026-09-07 by issue #15.** The reasoning — that pushing a whole row rewrites what a reader is in the middle of reading — was answered rather than dismissed: names arrive at the top, browsers anchor scroll position, and the reference site does the same. What survives of the decision is its second half, and it is unchanged: the first page is server-rendered from the loader alongside the counts, and the section fetches every page *after* it when the reader asks. What is new is a third source above both — the connection that already carries the counts now also carries the newest few published names, so a reader watching a moving counter beside a frozen list is a state the page can no longer be in. See Phase 8's second landing note below.
 - **The dev seed grew six organisations** and its total moved from 189 to 195. Without them the entity format — a name with no town beside it — was the one rendering path nothing exercised.
+
+### Landed — 2026-09-07 (issue #15)
+
+**Status: done.** The list is live, and the counter says how long ago the last signature arrived. `pnpm lint`, `pnpm types`, `pnpm test` and `pnpm knip` all pass.
+
+Decisions taken while implementing, binding on later slices:
+
+- **One payload, `LiveUpdate`, replaces `SignatureCounts` on the wire.** `{ counts, supporters }`, broadcast by the Durable Object and answered by `/api/signatures/snapshot` alike. Nested rather than flattened, so `supporters` is visibly not a count. `readLiveUpdate` in `queries.ts` is the one read behind both, which is what stops the socket and its fallback drifting into carrying different things.
+- **The names come through `readSupporters` and are sliced to five.** The consent gate and the `substr` redaction stay in the one query that owns them; `LIVE_SUPPORTERS` is the ceiling on what travels, and it does not move with the size of the petition. A page of rows to take five from is what that costs.
+- **The object sends only what is new; the endpoint sends the newest.** `LiveCounter` remembers the ids its last push carried, so the thirty-second heartbeat on a quiet petition carries no names at all and the steady state costs what it cost before. The snapshot endpoint has no memory of any caller, so it always answers with the newest few. Both are safe because the client keys on `id`.
+- **A greeting is not filtered.** It goes to one socket and marks nothing as sent — otherwise a name published between a page's render and its socket opening would be hidden from the reader who most needed it, and from everybody else already connected.
+- **The tempo is a duration, never an instant.** `readSignatureCounts` returns `secondsSinceLastSignature` — `unixepoch() - max(created_at)`, from the same `GROUP BY` — rather than `max(created_at)`. An instant has to be subtracted from a clock at the point of reading, and that clock is the reader's: a machine an hour out of true would report a signature from a minute ago as an hour old, or place it in the future. A duration is also what makes the label safe to server-render, because the first client render performs no subtraction and so cannot disagree with the markup it is hydrating. `LastSignature` counts on from there with its own stopwatch, and every push resets it.
+- **The words are `Intl.RelativeTimeFormat`'s.** Polish declines the unit as well as the number, so a content file spelling both out would need a plural table per unit. The content files own the label — `counter.lastSignature` — and nothing else.
+- **The list merges rather than stores.** `SupportersSection` derives what it shows from `arrivals` above `loaded`, deduplicating by id against the pages it holds. Copying arrivals into state would create two places that can disagree about what has been shown, and the effect reconciling them is the bug this shape does not have. Pagination is untouched: the cursor names a row, so names arriving above the walk are outside it.
+- **The tempo is not in the floating bar.** At 375 px the bar already carries a number and a call to action.
 
 ---
 

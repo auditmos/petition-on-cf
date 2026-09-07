@@ -28,7 +28,9 @@ const COPY = getContent("pl");
 
 function counts(byVoivodeship: Record<string, number>, total?: number): SignatureCounts {
 	const summed = Object.values(byVoivodeship).reduce((sum, count) => sum + count, 0);
-	return { total: total ?? summed, byVoivodeship };
+	// The tempo the counter reports rides in the same object and means nothing
+	// to a map, so it is stated as absent rather than as a number nothing reads.
+	return { total: total ?? summed, byVoivodeship, secondsSinceLastSignature: null };
 }
 
 function renderMap(payload: SignatureCounts) {

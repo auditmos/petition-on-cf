@@ -22,21 +22,36 @@ export const SUPPORTERS_SECTION_ID = "podpisali";
  * either could disagree with the query, and that disagreement would be a
  * privacy failure rather than a rendering bug. What this owns is the comma.
  *
- * Unlike the counter and the map it is not live, by decision: the counter
- * moves by one and this moves by a whole row, so pushing it would rewrite what
- * a reader is in the middle of reading. Later pages arrive only when the
- * reader asks, which also keeps a visitor on their way past the section from
- * loading two hundred names they never look at.
+ * The list grows from two ends and they do not meet. `arrivals` is what the
+ * connection has delivered since the page opened, and it goes on top; `loaded`
+ * is the server-rendered page plus every page the reader has asked for, and it
+ * grows downwards. They cannot collide, because the cursor names a row rather
+ * than an offset — a name that arrives above the walk is simply outside it —
+ * but the id is checked anyway: the senders of a push cannot know what this
+ * reader has already pulled up, so a repeat is traffic rather than a bug.
+ *
+ * Later pages still arrive only when the reader asks, which keeps a visitor on
+ * their way past the section from loading two hundred names they never look at.
  */
 export function SupportersSection({
 	page,
+	arrivals = [],
 	copy,
 }: {
 	page: SupporterPage;
+	/** Published names that arrived after this page was rendered, newest first. */
+	arrivals?: Supporter[];
 	copy: Content["supporters"];
 }) {
-	const [shown, setShown] = useState<Supporter[]>(page.supporters);
+	const [loaded, setLoaded] = useState<Supporter[]>(page.supporters);
 	const [cursor, setCursor] = useState(page.nextCursor);
+
+	// Derived rather than merged into state: the arrivals are somebody else's
+	// list and this only decides where they go. Holding a copy would mean two
+	// places that can disagree about what has been shown, and the reconciling
+	// effect between them is the bug this shape does not have.
+	const held = new Set(loaded.map((supporter) => supporter.id));
+	const shown = [...arrivals.filter((supporter) => !held.has(supporter.id)), ...loaded];
 	// Not only a disabled button: it is what stops a second click from fetching
 	// the same page again and listing everybody on it twice — the duplicate the
 	// cursor rules out in the query, put back by an impatient reader.
@@ -61,7 +76,7 @@ export function SupportersSection({
 				return;
 			}
 
-			setShown((listed) => [...listed, ...next.supporters]);
+			setLoaded((listed) => [...listed, ...next.supporters]);
 			setCursor(next.nextCursor);
 		} catch {
 			setFailed(true);

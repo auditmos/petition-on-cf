@@ -32,7 +32,7 @@ async function seed(count: number): Promise<void> {
 async function renderCounter(): Promise<string> {
 	return renderToString(
 		<CounterSection
-			count={(await readSignatureCounts(env.DB)).total}
+			counts={await readSignatureCounts(env.DB)}
 			language="pl"
 			copy={getContent("pl").counter}
 		/>,
@@ -64,5 +64,31 @@ describe("landing counter, server-rendered from D1", () => {
 		await seed(1234);
 
 		expect(await renderCounter()).toContain(">1234<");
+	});
+});
+
+/**
+ * The tempo line, in the markup rather than in a later render.
+ *
+ * It has to be in the first byte for the same reason the number is: a page that
+ * paints a petition and then admits a second later how long ago anybody last
+ * signed it has already been read. What makes that safe is that the server
+ * subtracts nothing — the duration is what D1 returned — so the browser
+ * hydrates the identical sentence.
+ */
+describe("landing counter, the tempo it reports", () => {
+	it("says how long ago the last signature arrived, in the server's own markup", async () => {
+		await seed(1);
+
+		const html = await renderCounter();
+
+		expect(html).toContain(getContent("pl").counter.lastSignature);
+		expect(html).toContain("teraz");
+	});
+
+	it("says nothing about a last signature on a petition nobody has signed", async () => {
+		const html = await renderCounter();
+
+		expect(html).not.toContain(getContent("pl").counter.lastSignature);
 	});
 });

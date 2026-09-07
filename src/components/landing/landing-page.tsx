@@ -35,12 +35,17 @@ import type { SupporterPage } from "@/core/supporters";
  * a consequence of how the file happens to be written.
  *
  * `counts` and `supporters` are both what the loader read from D1 for the
- * first paint, and from there they part company. The counts go on one socket,
- * opened once, feeding all three places the numbers appear — the counter, the
- * bar and the map. Opening a connection per reader would triple every
- * deployment's socket count to show one payload three ways, and the three
- * could then disagree. The list is on no socket at all: it is read once and
- * extended only when the reader asks for more.
+ * first paint, and one connection carries both onwards. It is opened once and
+ * feeds the four places the petition's state appears — the counter, the bar,
+ * the map and the list. Opening a connection per consumer would multiply every
+ * deployment's socket count to show one payload four ways, and the four could
+ * then disagree.
+ *
+ * What the connection delivers to the list is names, not the list: the section
+ * still owns what is on screen and still fetches older pages when the reader
+ * asks. A signature whose signer declined publication therefore moves the
+ * counter and leaves the list untouched, which is the intended behaviour rather
+ * than the two contradicting each other.
  */
 export function LandingPage({
 	counts,
@@ -54,7 +59,7 @@ export function LandingPage({
 	path?: string;
 }) {
 	const content = getContent(language);
-	const live = useLiveCounts(counts);
+	const { counts: live, arrivals } = useLiveCounts(counts);
 
 	return (
 		<div className="min-h-screen bg-paper">
@@ -69,7 +74,7 @@ export function LandingPage({
 				<HeroSection copy={content.hero} />
 				<StatsSection copy={content.stats} />
 				<MechanismSection copy={content.mechanism} />
-				<CounterSection count={live.total} language={language} copy={content.counter} />
+				<CounterSection counts={live} language={language} copy={content.counter} />
 				<SignSection copy={content.sign} legal={content.legal} language={language} />
 				<MapSection
 					counts={live}
@@ -77,7 +82,7 @@ export function LandingPage({
 					copy={content.map}
 					nouns={content.counter.nouns}
 				/>
-				<SupportersSection page={supporters} copy={content.supporters} />
+				<SupportersSection page={supporters} arrivals={arrivals} copy={content.supporters} />
 				<ShareSection copy={content.share} language={language} path={path} />
 				<FaqSection copy={content.faq} />
 			</main>

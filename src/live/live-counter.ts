@@ -1,6 +1,6 @@
 import { DurableObject } from "cloudflare:workers";
-import type { SignatureCounts } from "@/core/signature-counts";
-import { readSignatureCounts } from "@/db/signatures";
+import type { LiveUpdate } from "@/core/live-update";
+import { readLiveUpdate } from "@/db/signatures";
 
 /**
  * The floor on how often the object pushes, in milliseconds.
@@ -29,21 +29,40 @@ const RECONCILE_MS = 30_000;
  * ## What it is not
  *
  * It is not a source of truth and it never writes D1. Everything it holds came
- * out of a `GROUP BY` on the signatures table, so losing all of it — to an
+ * out of the signatures table a moment earlier, so losing all of it — to an
  * eviction, a deploy, a cold start — costs one query and nothing else. That is
- * the whole reason the counts can live in memory rather than in the object's
+ * the whole reason its state can live in memory rather than in the object's
  * own storage: storage would be a second copy of the answer, and a second copy
  * is a thing that can disagree.
+ *
+ * It does not decide who may be named, either. The names it broadcasts come
+ * from `readSupporters`, the same query the public list is paged from, so
+ * consent and redaction are settled in one `WHERE` clause and one `SELECT`
+ * rather than once per reader of the database.
  */
 export class LiveCounter extends DurableObject<Env> {
 	/**
-	 * The cached counts, held as the promise rather than as the value.
+	 * The cached update, held as the promise rather than as the value.
 	 *
 	 * Two clients connecting in the same instant both find the field set and
 	 * both await the same read, instead of both starting one. Storing the
 	 * resolved value would make that a race with D1 at the end of it.
 	 */
-	#counts: Promise<SignatureCounts> | null = null;
+	#latest: Promise<LiveUpdate> | null = null;
+
+	/**
+	 * The ids of the published names the last push knew about.
+	 *
+	 * This is what makes a quiet petition cost nothing: every push reaches every
+	 * open page, including the thirty-second heartbeat that fires when nothing
+	 * has happened, so a push repeats no name it has already sent. Losing the
+	 * set to an eviction costs one repeated name, which the page discards by id.
+	 *
+	 * It is updated only by a push, never by a greeting — a greeting goes to one
+	 * socket, and letting it mark names as sent would hide them from everybody
+	 * else who was already connected.
+	 */
+	#published = new Set<string>();
 
 	/**
 	 * When the last push went out, and therefore when the next one may.
@@ -117,11 +136,17 @@ export class LiveCounter extends DurableObject<Env> {
 
 	/** Re-read D1, cache the answer, and hand it to everyone listening. */
 	async #push(): Promise<void> {
-		const counts = await readSignatureCounts(this.env.DB);
-		this.#counts = Promise.resolve(counts);
+		const latest = await readLiveUpdate(this.env.DB);
+		this.#latest = Promise.resolve(latest);
 		this.#pushedAt = Date.now();
 
-		const payload = JSON.stringify(counts);
+		// The numbers go out every time — a total that did not move still had to
+		// be checked, and that check is the whole point of the heartbeat. The
+		// names go out only if they are new, because a name is only news once.
+		const fresh = latest.supporters.filter((supporter) => !this.#published.has(supporter.id));
+		this.#published = new Set(latest.supporters.map((supporter) => supporter.id));
+
+		const payload = JSON.stringify({ ...latest, supporters: fresh });
 		// `getWebSockets()` is the hibernation API's own register, so this
 		// reaches sockets attached by instances of this object that no longer
 		// exist — which after any eviction is most of them.
@@ -142,10 +167,18 @@ export class LiveCounter extends DurableObject<Env> {
 		if (scheduled === null || scheduled > at) await this.ctx.storage.setAlarm(at);
 	}
 
-	/** The counts, rebuilt from D1 the first time anybody asks. */
-	#current(): Promise<SignatureCounts> {
-		this.#counts ??= readSignatureCounts(this.env.DB);
-		return this.#counts;
+	/**
+	 * The current state of the petition, rebuilt from D1 the first time anybody
+	 * asks.
+	 *
+	 * A greeting carries every name the read produced rather than only the ones
+	 * nobody has been sent. The page it is greeting was rendered a moment
+	 * earlier, and anything published in the gap between that render and this
+	 * socket opening would otherwise be a name it never hears about.
+	 */
+	#current(): Promise<LiveUpdate> {
+		this.#latest ??= readLiveUpdate(this.env.DB);
+		return this.#latest;
 	}
 }
 

@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { useLiveCounts } from "@/components/counter/use-live-counts";
-import type { SignatureCounts } from "@/core/signature-counts";
+import type { LiveUpdate } from "@/core/live-update";
+import type { Supporter } from "@/core/supporters";
 
 /**
  * The page's half of the live counter.
@@ -11,7 +12,10 @@ import type { SignatureCounts } from "@/core/signature-counts";
  *   and never shows less than the page was painted with.
  * - **Output** is the whole payload: the headline number and the split behind
  *   it, handed on together because the counter and the map both read it and a
- *   page that updated one without the other would contradict itself.
+ *   page that updated one without the other would contradict itself — plus
+ *   every published name the connection has delivered, accumulated and
+ *   deduplicated by id, because a push carries what is new rather than what
+ *   exists and the same name may arrive twice.
  * - **Boundaries**: a `WebSocket` constructor that throws outright, a socket
  *   that closes without ever delivering, a push that is not the shape it
  *   should be, and a component that unmounts mid-connection.
@@ -81,13 +85,23 @@ class FakeSocket {
 }
 
 /** The counts a page was painted with, before any region signed. */
-function signed(total: number): SignatureCounts {
-	return { total, byVoivodeship: {} };
+function signed(total: number) {
+	return { total, byVoivodeship: {}, secondsSinceLastSignature: null };
+}
+
+/** A supporter as the server publishes one. */
+function named(id: string, name: string): Supporter {
+	return { id, name, city: "Warszawa" };
+}
+
+/** What the object broadcasts and the snapshot endpoint answers with. */
+function update(total: number, supporters: Supporter[] = []): LiveUpdate {
+	return { counts: signed(total), supporters };
 }
 
 /** The snapshot endpoint, answering whatever a test wants it to. */
-function stubSnapshot(total: number): ReturnType<typeof vi.fn> {
-	const stub = vi.fn(async () => Response.json({ data: { total, byVoivodeship: {} } }));
+function stubSnapshot(total: number, supporters: Supporter[] = []): ReturnType<typeof vi.fn> {
+	const stub = vi.fn(async () => Response.json({ data: update(total, supporters) }));
 	vi.stubGlobal("fetch", stub);
 	return stub;
 }
@@ -107,7 +121,7 @@ describe("useLiveCounts", () => {
 	it("starts at the count the page was rendered with", () => {
 		const { result } = renderHook(() => useLiveCounts(signed(7)));
 
-		expect(result.current.total).toBe(7);
+		expect(result.current.counts.total).toBe(7);
 	});
 
 	it("opens a socket against this deployment's live endpoint", () => {
@@ -119,9 +133,9 @@ describe("useLiveCounts", () => {
 	it("moves to the number the socket pushes", async () => {
 		const { result } = renderHook(() => useLiveCounts(signed(7)));
 
-		act(() => FakeSocket.last.push({ total: 12, byVoivodeship: { "PL-MZ": 12 } }));
+		act(() => FakeSocket.last.push(update(12)));
 
-		await waitFor(() => expect(result.current.total).toBe(12));
+		await waitFor(() => expect(result.current.counts.total).toBe(12));
 	});
 
 	// The map's half of the same push. It arrives on the same frame as the
@@ -129,9 +143,20 @@ describe("useLiveCounts", () => {
 	it("hands on the split the push carried, not just its total", async () => {
 		const { result } = renderHook(() => useLiveCounts(signed(7)));
 
-		act(() => FakeSocket.last.push({ total: 12, byVoivodeship: { "PL-MZ": 9, "PL-PM": 3 } }));
+		act(() =>
+			FakeSocket.last.push({
+				counts: {
+					total: 12,
+					byVoivodeship: { "PL-MZ": 9, "PL-PM": 3 },
+					secondsSinceLastSignature: 4,
+				},
+				supporters: [],
+			}),
+		);
 
-		await waitFor(() => expect(result.current.byVoivodeship).toEqual({ "PL-MZ": 9, "PL-PM": 3 }));
+		await waitFor(() =>
+			expect(result.current.counts.byVoivodeship).toEqual({ "PL-MZ": 9, "PL-PM": 3 }),
+		);
 	});
 
 	// A payload that is not the shape it should be is a bug somewhere, and the
@@ -142,10 +167,46 @@ describe("useLiveCounts", () => {
 
 		act(() => {
 			FakeSocket.last.pushRaw("not json at all");
-			FakeSocket.last.push({ total: "many" });
+			FakeSocket.last.push({ counts: { total: "many" }, supporters: [] });
 		});
 
-		await waitFor(() => expect(result.current.total).toBe(7));
+		await waitFor(() => expect(result.current.counts.total).toBe(7));
+	});
+
+	// The list's half of the same push. A push carries what the sender believes
+	// is new, so the hook has to remember: a reader who has been on the page for
+	// an hour has to be holding every name that arrived in it, not the last one.
+	it("collects the names a push carries", async () => {
+		const { result } = renderHook(() => useLiveCounts(signed(7)));
+
+		act(() => FakeSocket.last.push(update(8, [named("id-anna", "Anna K.")])));
+
+		await waitFor(() => expect(result.current.arrivals.map((s) => s.name)).toEqual(["Anna K."]));
+	});
+
+	it("keeps the names an earlier push delivered, newest first", async () => {
+		const { result } = renderHook(() => useLiveCounts(signed(7)));
+
+		act(() => FakeSocket.last.push(update(8, [named("id-anna", "Anna K.")])));
+		act(() => FakeSocket.last.push(update(9, [named("id-piotr", "Piotr N.")])));
+
+		await waitFor(() =>
+			expect(result.current.arrivals.map((s) => s.name)).toEqual(["Piotr N.", "Anna K."]),
+		);
+	});
+
+	// The object suppresses names it has already sent, but it forgets what it
+	// sent when it is evicted, and the polling fallback has no memory at all. So
+	// a repeat is expected traffic rather than a bug, and the id is what settles
+	// it — the same row can only ever be one entry.
+	it("never lists the same name twice, however often it arrives", async () => {
+		const { result } = renderHook(() => useLiveCounts(signed(7)));
+
+		act(() => FakeSocket.last.push(update(8, [named("id-anna", "Anna K.")])));
+		act(() => FakeSocket.last.push(update(8, [named("id-anna", "Anna K.")])));
+
+		await waitFor(() => expect(result.current.counts.total).toBe(8));
+		expect(result.current.arrivals).toHaveLength(1);
 	});
 
 	it("lets go of the socket when the page goes away", () => {
@@ -170,8 +231,21 @@ describe("useLiveCounts, when no socket can be established", () => {
 
 		const { result } = renderHook(() => useLiveCounts(signed(7)));
 
-		await waitFor(() => expect(result.current.total).toBe(41));
+		await waitFor(() => expect(result.current.counts.total).toBe(41));
 		expect(snapshot).toHaveBeenCalledWith("/api/signatures/snapshot");
+	});
+
+	// The reason the fallback carries names at all. A reader behind a proxy that
+	// strips upgrades is exactly the reader who cannot reload to see who else
+	// signed, so a fallback that carried only the numbers would leave them with
+	// the frozen list this issue exists to remove.
+	it("collects the names the snapshot endpoint answers with", async () => {
+		FakeSocket.refuse = true;
+		stubSnapshot(41, [named("id-anna", "Anna K.")]);
+
+		const { result } = renderHook(() => useLiveCounts(signed(7)));
+
+		await waitFor(() => expect(result.current.arrivals.map((s) => s.name)).toEqual(["Anna K."]));
 	});
 
 	it("polls after a socket closes without ever delivering", async () => {
@@ -180,7 +254,7 @@ describe("useLiveCounts, when no socket can be established", () => {
 
 		act(() => FakeSocket.last.drop());
 
-		await waitFor(() => expect(result.current.total).toBe(23));
+		await waitFor(() => expect(result.current.counts.total).toBe(23));
 	});
 
 	// Polling once is a retry. Polling on is the fallback — the number has to

@@ -14,7 +14,7 @@ import { z } from "zod";
  * one: the browser reads this off the network when it asks for the next page,
  * and what arrives over a fetch is whatever arrived over a fetch.
  */
-const supporterSchema = z.object({
+export const supporterSchema = z.object({
 	/** The row's own id. A random UUID, so it says nothing about the signer. */
 	id: z.string().min(1),
 	/** "Anna K." for a person, the entity's name for anybody else. */

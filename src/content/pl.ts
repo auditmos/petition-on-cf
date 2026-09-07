@@ -43,6 +43,7 @@ export const pl = {
 
 	counter: {
 		eyebrow: "Poparcie dla tej sprawy",
+		lastSignature: "Ostatni podpis",
 		note: "Liczba pochodzi wprost z bazy podpisów tego wdrożenia. Aktualizuje się sama, bez odświeżania strony: każdy nowy podpis dociera do wszystkich otwartych kart w ciągu sekundy. Jeśli Twoja sieć blokuje połączenia na żywo, strona po cichu przechodzi na odpytywanie co kilkanaście sekund.",
 		nouns: {
 			zero: "podpisów",
@@ -88,7 +89,7 @@ export const pl = {
 	supporters: {
 		eyebrow: "Kto podpisał",
 		heading: "Lista popierających",
-		note: "Widnieją tu tylko te podpisy, których autorzy zgodzili się na publikację: imię i pierwsza litera nazwiska oraz miejscowość, a w przypadku {{signerOrgNounGen}} — jej nazwa. Lista nie odświeża się na żywo, w odróżnieniu od licznika i mapy; nowe podpisy pojawią się na niej po przeładowaniu strony.",
+		note: "Widnieją tu tylko te podpisy, których autorzy zgodzili się na publikację: imię i pierwsza litera nazwiska oraz miejscowość, a w przypadku {{signerOrgNounGen}} — jej nazwa. Nowe podpisy dopisują się na górze listy same, bez przeładowania strony. Podpis złożony bez zgody na publikację zwiększa licznik i nie trafia na tę listę — dlatego lista bywa krótsza niż liczba podpisów.",
 		empty: "Nikt jeszcze nie zgodził się na publikację swojego podpisu.",
 		loadMore: "Pokaż więcej",
 		loadMoreFailed: "Nie udało się wczytać kolejnych podpisów. Spróbuj ponownie.",

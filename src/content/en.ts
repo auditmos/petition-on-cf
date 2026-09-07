@@ -44,6 +44,7 @@ export const en = {
 
 	counter: {
 		eyebrow: "Support for this cause",
+		lastSignature: "Last signature",
 		note: "The number comes straight from this deployment's signature database. It updates on its own, with no page reload: every new signature reaches all open tabs within about a second. If your network blocks live connections, the page quietly falls back to asking every few seconds.",
 		nouns: {
 			zero: "signatures",
@@ -89,7 +90,7 @@ export const en = {
 	supporters: {
 		eyebrow: "Who signed",
 		heading: "The people backing this",
-		note: "Only signatures whose authors agreed to publication appear here: a first name, the first letter of a surname and a town — or, for an organisation, its name. Unlike the counter and the map, this list is not live; new signatures show up on it after a reload.",
+		note: "Only signatures whose authors agreed to publication appear here: a first name, the first letter of a surname and a town — or, for an organisation, its name. New names are added at the top on their own, with no reload. A signature given without that consent still counts toward the total and never joins this list, which is why the list is shorter than the counter.",
 		empty: "Nobody has agreed to have their signature published yet.",
 		loadMore: "Show more",
 		loadMoreFailed: "The next signatures could not be loaded. Please try again.",

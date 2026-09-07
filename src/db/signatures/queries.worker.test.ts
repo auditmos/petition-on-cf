@@ -1,6 +1,11 @@
 import { env } from "cloudflare:test";
 import type { SupporterPage } from "@/core/supporters";
-import { readSignatureCounts, readSupporters } from "@/db/signatures";
+import {
+	LIVE_SUPPORTERS,
+	readLiveUpdate,
+	readSignatureCounts,
+	readSupporters,
+} from "@/db/signatures";
 import { resetDatabase } from "@/db/test-support";
 
 /**
@@ -30,7 +35,9 @@ async function insertSignature(email: string, voivodeshipCode?: string): Promise
 
 describe("readSignatureCounts", () => {
 	it("counts nothing on a freshly migrated database", async () => {
-		expect(await readSignatureCounts(env.DB)).toEqual({ total: 0, byVoivodeship: {} });
+		expect(await readSignatureCounts(env.DB)).toEqual(
+			expect.objectContaining({ total: 0, byVoivodeship: {} }),
+		);
 	});
 
 	it("counts every stored signature", async () => {
@@ -38,10 +45,9 @@ describe("readSignatureCounts", () => {
 		await insertSignature("jan@example.com", "PL-MZ");
 		await insertSignature("ewa@example.com", "PL-DS");
 
-		expect(await readSignatureCounts(env.DB)).toEqual({
-			total: 3,
-			byVoivodeship: { "PL-MZ": 2, "PL-DS": 1 },
-		});
+		expect(await readSignatureCounts(env.DB)).toEqual(
+			expect.objectContaining({ total: 3, byVoivodeship: { "PL-MZ": 2, "PL-DS": 1 } }),
+		);
 	});
 
 	// The map (#8) needs these split by region, and it needs the split to add
@@ -67,10 +73,9 @@ describe("readSignatureCounts", () => {
 		await insertSignature("jan@example.com", "unknown");
 		await insertSignature("ewa@example.com", "PL-WP");
 
-		expect(await readSignatureCounts(env.DB)).toEqual({
-			total: 3,
-			byVoivodeship: { unknown: 2, "PL-WP": 1 },
-		});
+		expect(await readSignatureCounts(env.DB)).toEqual(
+			expect.objectContaining({ total: 3, byVoivodeship: { unknown: 2, "PL-WP": 1 } }),
+		);
 	});
 
 	// The dedup key issue #4 will build on. What ships in *this* slice is the
@@ -291,5 +296,121 @@ describe("readSupporters, order and pages", () => {
 		expect(pages).toBeGreaterThan(1);
 		expect(new Set(walked).size).toBe(stored);
 		expect(walked).toHaveLength(stored);
+	});
+});
+
+/**
+ * The one read behind every live update, which is two questions answered
+ * together: how many have signed, and who most recently agreed to be named.
+ *
+ * Together rather than separately because the `LiveCounter` Durable Object and
+ * the snapshot endpoint both need both, and a page that received a total from
+ * one moment and a name from another could show a name the total does not
+ * account for.
+ *
+ * The names come through `readSupporters`, so consent and redaction are that
+ * query's answer here exactly as they are on the public list. The tests below
+ * assert the consequence rather than the mechanism: a signer who declined is
+ * counted and never named.
+ */
+describe("readLiveUpdate", () => {
+	it("answers with the counts and the newest published names at once", async () => {
+		await storeSupporter({ email: "anna@example.test", firstName: "Anna", city: "Warszawa" });
+
+		const update = await readLiveUpdate(env.DB);
+
+		expect(update.counts.total).toBe(1);
+		expect(update.supporters).toEqual([expect.objectContaining({ name: "Anna K." })]);
+	});
+
+	// The behaviour the issue calls intended rather than contradictory: the
+	// counter moves for every signature, the list only for the ones that belong
+	// on it.
+	it("counts a signer who declined publication without ever naming them", async () => {
+		await storeSupporter({ email: "anna@example.test", firstName: "Anna", createdAt: 100 });
+		await storeSupporter({
+			email: "piotr@example.test",
+			firstName: "Piotr",
+			consentPublicList: false,
+			createdAt: 200,
+		});
+
+		const update = await readLiveUpdate(env.DB);
+
+		expect(update.counts.total).toBe(2);
+		expect(update.supporters.map((supporter) => supporter.name)).toEqual(["Anna K."]);
+	});
+
+	// Every push reaches every open page, so what travels has to have a ceiling
+	// that does not move with the size of the petition.
+	it("carries a bounded number of names however many have signed", async () => {
+		for (let n = 0; n < LIVE_SUPPORTERS + 4; n += 1) {
+			await storeSupporter({
+				email: `signer-${n}@example.test`,
+				city: `City ${n}`,
+				createdAt: 100 + n,
+			});
+		}
+
+		const update = await readLiveUpdate(env.DB);
+
+		expect(update.supporters).toHaveLength(LIVE_SUPPORTERS);
+		expect(update.supporters[0]?.city).toBe(`City ${LIVE_SUPPORTERS + 3}`);
+	});
+});
+
+/**
+ * How long ago the last signature arrived, which is a different question from
+ * how many there are and is answered by the same query.
+ *
+ * It is a duration rather than an instant, and deliberately so. An instant has
+ * to be subtracted from a clock, and the only clock available where the label
+ * is read is the reader's — which on a machine an hour out of true would report
+ * a signature from a minute ago as an hour old, or as arriving in the future.
+ * A duration measured by the database is the same number everywhere.
+ *
+ * The rows are inserted with `unixepoch()` arithmetic rather than a value from
+ * this runtime's clock, so the reading and the writing are the same clock and
+ * the assertions can be tight.
+ */
+describe("readSignatureCounts, the petition's tempo", () => {
+	async function storeSignedSecondsAgo(email: string, secondsAgo: number, consent = true) {
+		await env.DB.prepare(
+			`INSERT INTO signatures (id, first_name, surname, email, city, signer_type, consent_rodo, consent_public_list, created_at)
+			 VALUES (?, 'Anna', 'Kowalska', ?, 'Warszawa', 'person', 1, ?, unixepoch() - ?)`,
+		)
+			.bind(crypto.randomUUID(), email, consent ? 1 : 0, secondsAgo)
+			.run();
+	}
+
+	it("says nothing about a last signature when nobody has signed", async () => {
+		expect(await readSignatureCounts(env.DB)).toEqual({
+			total: 0,
+			byVoivodeship: {},
+			secondsSinceLastSignature: null,
+		});
+	});
+
+	it("reports how long ago the newest signature arrived", async () => {
+		await storeSignedSecondsAgo("old@example.test", 900);
+		await storeSignedSecondsAgo("recent@example.test", 300);
+
+		const { secondsSinceLastSignature } = await readSignatureCounts(env.DB);
+
+		expect(secondsSinceLastSignature).toBeGreaterThanOrEqual(300);
+		expect(secondsSinceLastSignature).toBeLessThanOrEqual(302);
+	});
+
+	// The counter counts every signature, so the tempo it reports is every
+	// signature's too. Measuring from the newest *published* one would tell a
+	// reader the petition had gone quiet whenever the people signing it happened
+	// to decline being named.
+	it("measures from the newest signature of any kind, published or not", async () => {
+		await storeSignedSecondsAgo("published@example.test", 900);
+		await storeSignedSecondsAgo("private@example.test", 60, false);
+
+		const { secondsSinceLastSignature } = await readSignatureCounts(env.DB);
+
+		expect(secondsSinceLastSignature).toBeLessThanOrEqual(62);
 	});
 });
