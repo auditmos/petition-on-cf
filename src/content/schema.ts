@@ -114,6 +114,28 @@ export const contentSchema = z.object({
 		unknownLabel: line,
 	}),
 
+	/**
+	 * The public list of who signed.
+	 *
+	 * It renders only the signers who ticked the publication consent, so the
+	 * note beside it has to say that — a reader who signed and cannot find
+	 * themselves is owed the reason, and a reader who can find somebody else is
+	 * owed the assurance that they agreed to it.
+	 */
+	supporters: section.extend({
+		note: line,
+		/** Said when nobody has consented yet, which is a fresh deployment. */
+		empty: line,
+		loadMore: line,
+		/** Said when the next page could not be fetched — the reader can retry. */
+		loadMoreFailed: line,
+		/**
+		 * The endpoint's answer to a cursor it never issued. Nobody's browser can
+		 * produce one, so this is read by whoever crafted the request.
+		 */
+		invalidCursor: line,
+	}),
+
 	sign: z.object({
 		eyebrow: line,
 		heading: line,

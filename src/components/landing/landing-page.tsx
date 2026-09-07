@@ -8,9 +8,11 @@ import { HowItWorksSection } from "@/components/landing/how-it-works-section";
 import { MapSection } from "@/components/landing/map-section";
 import { SignSection } from "@/components/landing/sign-section";
 import { StatsSection } from "@/components/landing/stats-section";
+import { SupportersSection } from "@/components/landing/supporters-section";
 import { NavigationBar } from "@/components/navigation";
 import { getContent, type Language } from "@/content";
 import type { SignatureCounts } from "@/core/signature-counts";
+import type { SupporterPage } from "@/core/supporters";
 
 /**
  * The landing page, in whichever language the route serves.
@@ -23,18 +25,22 @@ import type { SignatureCounts } from "@/core/signature-counts";
  * literal it already is, which is what keeps the language switcher out of the
  * router's state and therefore testable.
  *
- * `counts` is what the loader read from D1 for the first paint. From here the
- * page takes over: one socket, opened once, feeding all three places the
- * numbers appear — the counter, the bar and the map. Opening a connection per
- * reader would triple every deployment's socket count to show one payload
- * three ways, and the three could then disagree.
+ * `counts` and `supporters` are both what the loader read from D1 for the
+ * first paint, and from there they part company. The counts go on one socket,
+ * opened once, feeding all three places the numbers appear — the counter, the
+ * bar and the map. Opening a connection per reader would triple every
+ * deployment's socket count to show one payload three ways, and the three
+ * could then disagree. The list is on no socket at all: it is read once and
+ * extended only when the reader asks for more.
  */
 export function LandingPage({
 	counts,
+	supporters,
 	language,
 	path = "/",
 }: {
 	counts: SignatureCounts;
+	supporters: SupporterPage;
 	language: Language;
 	path?: string;
 }) {
@@ -60,6 +66,7 @@ export function LandingPage({
 					copy={content.map}
 					nouns={content.counter.nouns}
 				/>
+				<SupportersSection page={supporters} copy={content.supporters} />
 				<StatsSection copy={content.stats} />
 				<FeaturesSection copy={content.features} />
 				<HowItWorksSection copy={content.howItWorks} />

@@ -23,6 +23,9 @@
 --     the sixteen regions and the headline number still add up.
 --   * Two in three consent to the public list, so the supporters list has both
 --     something to show and something to leave out.
+--   * Six of the rows are organisations rather than people, because the public
+--     list writes those as a name with no town beside it and nothing else in
+--     the seed exercises that.
 --
 -- Nothing here is a real person. The addresses are all under `.example.test`,
 -- a reserved domain that cannot resolve or receive mail.
@@ -111,3 +114,43 @@ SELECT
 FROM region
 JOIN seq ON seq.i <= region.wanted
 JOIN person ON person.slot = seq.i % 12;
+
+-- A handful of non-personal signers.
+--
+-- The public list renders these differently — the entity's name, and no town
+-- beside it — so a seed made only of people would leave that format
+-- unexercised, and it is the one most easily broken without noticing. Two of
+-- the six decline publication, for the same reason a third of the people above
+-- do. Three carry a role and three do not, because the role is a field a
+-- deployment chooses to collect.
+--
+-- Nothing here is a real organisation either. The names are generic and the
+-- addresses are under `.example.test`, the same reserved domain.
+INSERT OR IGNORE INTO signatures (
+	id,
+	first_name,
+	surname,
+	email,
+	city,
+	signer_type,
+	company_name,
+	signer_role,
+	voivodeship_code,
+	consent_rodo,
+	consent_public_list,
+	consent_updates,
+	created_at
+)
+VALUES
+	('seed-org-1', 'Anna', 'Kowalska', 'seed-org-1@example.test', 'Warszawa', 'company',
+	 'Fundacja Przykładowa', 'prezeska', 'PL-MZ', 1, 1, 1, unixepoch() - 43200),
+	('seed-org-2', 'Marek', 'Wójcik', 'seed-org-2@example.test', 'Kraków', 'company',
+	 'Stowarzyszenie Sąsiedzkie', 'sekretarz', 'PL-MA', 1, 1, 0, unixepoch() - 129600),
+	('seed-org-3', 'Joanna', 'Szymańska', 'seed-org-3@example.test', 'Gdańsk', 'company',
+	 'Spółdzielnia Socjalna Przykład', NULL, 'PL-PM', 1, 1, 0, unixepoch() - 216000),
+	('seed-org-4', 'Paweł', 'Zieliński', 'seed-org-4@example.test', 'Poznań', 'company',
+	 'Klub Sportowy Przykład', 'prezes', 'PL-WP', 1, 0, 0, unixepoch() - 302400),
+	('seed-org-5', 'Ewa', 'Dąbrowska', 'seed-org-5@example.test', 'Wrocław', 'company',
+	 'Przykładowa Spółka z o.o.', NULL, 'PL-DS', 1, 0, 1, unixepoch() - 388800),
+	('seed-org-6', 'Katarzyna', 'Wiśniewska', 'seed-org-6@example.test', 'Kielce', 'company',
+	 'Koło Gospodyń Przykładowych', 'przewodnicząca', NULL, 1, 1, 0, unixepoch() - 475200);

@@ -421,6 +421,19 @@ The consent-gated public supporters list: a paginated section showing only signe
 - [ ] Pagination walks the full consenting set without duplicates or gaps — [test: integration pagination walk]
 - [ ] List endpoint never exposes e-mail, full surname, or consent flags — [test: response-shape assertion]
 
+### Landed — 2026-09-07 (issue #10)
+
+**Status: done.** `pnpm lint`, `pnpm types`, `pnpm test` and `pnpm knip` all pass. Verified by hand against `pnpm dev` with the reseeded local database.
+
+Decisions taken while implementing, binding on later slices:
+
+- **Keyset pagination, not offset.** The list is newest-first over a table that is appended to while a reader has the page open, so `LIMIT/OFFSET` shows a row twice the moment one signature lands between two page requests — which is precisely the criterion above. The cursor is `<created_at seconds>.<id>`; the id half is not optional, because `created_at` is Unix seconds and a petition collecting faster than that stores rows SQLite considers equal. `ORDER BY created_at DESC, id DESC` and the matching `(created_at, id) <` predicate are one decision, and changing either alone breaks the walk.
+- **The redaction is in the SELECT.** The query asks for `substr(surname, 1, 1)`, so the surname never leaves D1 — the guarantee is structural rather than a field somebody remembers to drop. Uppercasing happens in JavaScript because SQLite's `upper()` is ASCII-only and would return `ł` unchanged.
+- **A page size the client cannot name.** 24, fixed in `queries.ts`. A `limit` parameter is a way to ask for the whole list in one request, which is the shape the endpoint exists to avoid. One extra row is fetched per page to decide whether a next page exists, rather than a second `count(*)` that could disagree with the rows under a concurrent insert.
+- **A non-personal signer with no `company_name` is excluded, not coalesced.** The sign endpoint cannot create such a row, but the database is also written by hand, and a blank line on a public page is worse than an absent one.
+- **The list is the one part of the page on no socket.** The counter moves by one and the list moves by a whole row; pushing it would rewrite what a reader is in the middle of reading. The first page is server-rendered from the loader alongside the counts, and the section fetches every page after it.
+- **The dev seed grew six organisations** and its total moved from 189 to 195. Without them the entity format — a name with no town beside it — was the one rendering path nothing exercised.
+
 ---
 
 ## Phase 9: Full page anatomy

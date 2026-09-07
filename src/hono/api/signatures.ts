@@ -2,9 +2,10 @@ import { type ZodError, z } from "zod";
 import { getContent } from "@/content";
 import { AppError, rootCauseMessage } from "@/core/errors";
 import { createSignatureInputSchema } from "@/core/signature-input";
+import { decodeSupporterCursor } from "@/core/supporters";
 import { verifyTurnstile } from "@/core/turnstile";
 import { resolveVoivodeship } from "@/core/voivodeship";
-import { insertSignature, readSignatureCounts } from "@/db/signatures";
+import { insertSignature, readSignatureCounts, readSupporters } from "@/db/signatures";
 import { createHono } from "@/hono/factory";
 import { liveCounter } from "@/live";
 
@@ -20,6 +21,8 @@ const signaturesEndpoint = createHono();
  * and nothing else.
  */
 const COPY = getContent("pl").sign;
+/** The read side has its own copy, and one line of it the browser never sees. */
+const LIST_COPY = getContent("pl").supporters;
 const signatureInputSchema = createSignatureInputSchema(COPY.errors);
 
 /**
@@ -153,6 +156,29 @@ signaturesEndpoint.post("/", async (c) => {
  */
 signaturesEndpoint.get("/snapshot", async (c) => {
 	return c.json({ data: await readSignatureCounts(c.env.DB) });
+});
+
+/**
+ * The people who agreed to be named, a page at a time.
+ *
+ * Deliberately not live, and deliberately not on the socket: the counter moves
+ * by one and the list moves by a whole row, so pushing it would rewrite what a
+ * reader is in the middle of reading. It is read once when the page loads and
+ * again only when the reader asks for more.
+ *
+ * The one parameter is a cursor this endpoint issued. A cursor it did not
+ * issue is a request nobody's browser made, so it is refused rather than
+ * quietly answered with the first page — which would look to a caller like
+ * their pagination had silently restarted.
+ */
+signaturesEndpoint.get("/supporters", async (c) => {
+	const cursor = c.req.query("cursor");
+
+	if (cursor !== undefined && decodeSupporterCursor(cursor) === null) {
+		throw new AppError(LIST_COPY.invalidCursor, "VALIDATION", 400, "cursor");
+	}
+
+	return c.json({ data: await readSupporters(c.env.DB, cursor) });
 });
 
 export default signaturesEndpoint;

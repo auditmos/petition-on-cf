@@ -9,6 +9,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import { LandingPage } from "@/components/landing/landing-page";
 import { getContent } from "@/content";
 import type { SignatureCounts } from "@/core/signature-counts";
+import type { SupporterPage } from "@/core/supporters";
 
 /**
  * The page, assembled — specifically the two things that only exist once it is
@@ -105,11 +106,14 @@ afterEach(() => {
  * a stand-in — they are the real thing, pointed at memory instead of at a
  * browser's history.
  */
-async function renderPage(counts: SignatureCounts) {
+async function renderPage(
+	counts: SignatureCounts,
+	supporters: SupporterPage = { supporters: [], nextCursor: null },
+) {
 	const rootRoute = createRootRoute({
 		component: () => (
 			<QueryClientProvider client={new QueryClient()}>
-				<LandingPage counts={counts} language="pl" />
+				<LandingPage counts={counts} supporters={supporters} language="pl" />
 			</QueryClientProvider>
 		),
 	});
@@ -193,5 +197,24 @@ describe("LandingPage, floating bar", () => {
 
 		const cta = screen.getByRole("link", { name: COPY.floatingBar.cta });
 		expect(cta.getAttribute("href")).toBe("#podpisz");
+	});
+});
+
+/**
+ * The public list, in place on the page.
+ *
+ * What it renders and how it asks for more is `supporters-section.test.tsx`'s
+ * subject. What this covers is the seam: the page hands the section what the
+ * loader read from D1, so the first names are in the server's own HTML rather
+ * than fetched after hydration the way the rest of the list is.
+ */
+describe("LandingPage, supporters", () => {
+	it("shows the supporters the server read, without asking for them again", async () => {
+		await renderPage(signed(1), {
+			supporters: [{ id: "id-anna", name: "Anna K.", city: "Warszawa" }],
+			nextCursor: null,
+		});
+
+		expect(screen.getByText("Anna K., Warszawa").textContent).toBe("Anna K., Warszawa");
 	});
 });

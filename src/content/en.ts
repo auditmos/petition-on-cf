@@ -86,6 +86,16 @@ export const en = {
 		},
 	},
 
+	supporters: {
+		eyebrow: "Who signed",
+		heading: "The people backing this",
+		note: "Only signatures whose authors agreed to publication appear here: a first name, the first letter of a surname and a town — or, for an organisation, its name. Unlike the counter and the map, this list is not live; new signatures show up on it after a reload.",
+		empty: "Nobody has agreed to have their signature published yet.",
+		loadMore: "Show more",
+		loadMoreFailed: "The next signatures could not be loaded. Please try again.",
+		invalidCursor: "That is not a valid list page marker.",
+	},
+
 	sign: {
 		eyebrow: "Sign",
 		heading: "Sign the “{{petitionName}}” petition",

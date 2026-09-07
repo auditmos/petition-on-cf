@@ -85,6 +85,16 @@ export const pl = {
 		},
 	},
 
+	supporters: {
+		eyebrow: "Kto podpisał",
+		heading: "Lista popierających",
+		note: "Widnieją tu tylko te podpisy, których autorzy zgodzili się na publikację: imię i pierwsza litera nazwiska oraz miejscowość, a w przypadku {{signerOrgNounGen}} — jej nazwa. Lista nie odświeża się na żywo, w odróżnieniu od licznika i mapy; nowe podpisy pojawią się na niej po przeładowaniu strony.",
+		empty: "Nikt jeszcze nie zgodził się na publikację swojego podpisu.",
+		loadMore: "Pokaż więcej",
+		loadMoreFailed: "Nie udało się wczytać kolejnych podpisów. Spróbuj ponownie.",
+		invalidCursor: "Nieprawidłowy wskaźnik strony listy.",
+	},
+
 	sign: {
 		eyebrow: "Podpis",
 		heading: "Podpisz petycję „{{petitionName}}”",

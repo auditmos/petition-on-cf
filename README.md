@@ -55,14 +55,16 @@ Implementation is dispatched as dependency-ordered tracer-bullet slices — each
 
 ## Current state
 
-The repo was generated from [tstack-on-cf](https://github.com/auditmos/tstack-on-cf) (TanStack Start + Hono on Workers, Drizzle, Zod, Shadcn/UI, Biome + Vitest + knip). Five slices have landed on top of it:
+The repo was generated from [tstack-on-cf](https://github.com/auditmos/tstack-on-cf) (TanStack Start + Hono on Workers, Drizzle, Zod, Shadcn/UI, Biome + Vitest + knip). Eight slices have landed on top of it:
 
 - **Persistence is Cloudflare D1**, reached through Drizzle's SQLite driver behind `src/db/setup.ts`. The `signatures` table ships as a migration, and the landing page server-renders the total count from it — the number is in the first byte of HTML, not fetched afterwards.
 - **The demo `clients` domain is gone**, along with the Neon driver, its three credentials, and the seed script.
 - **Signing works.** `POST /api/signatures` runs the full trust pipeline — validate → Turnstile → per-IP rate limit → region attribution → unique-e-mail dedup — and the form renders a distinct answer for each way it can end. Every signature stores an ISO 3166-2:PL voivodeship code derived from its postal code, or from Cloudflare's geo-IP, or the `unknown` bucket.
 - **Copy is bilingual and lives outside the components.** `/` is Polish, `/en` English.
 - **The counter is live.** A `LiveCounter` Durable Object holds the counts, rebuilds them from D1 whenever it is asked cold, and pushes them over a hibernatable WebSocket to every open page — coalesced to about one push a second, with a 30-second reconciliation heartbeat behind it. A page that cannot open a socket falls back to polling `/api/signatures/snapshot` without saying so. The floating bar arrives once the hero is behind the reader and carries the same number.
-- **Still ahead:** the voivodeship map ([#8](https://github.com/auditmos/petition-on-cf/issues/8)) — region codes are stored but not displayed — the real legal texts ([#3](https://github.com/auditmos/petition-on-cf/issues/3), [#9](https://github.com/auditmos/petition-on-cf/issues/9)), and the supporters list ([#10](https://github.com/auditmos/petition-on-cf/issues/10)).
+- **The map and the legal layer are in.** Sixteen voivodeships shaded by the codes the pipeline stores, every count also written out beside the drawing; the RODO clause and the privacy policy served as real routes from tokenized Markdown.
+- **The supporters list is public and consent-gated.** `GET /api/signatures/supporters` pages through the signers who ticked the publication consent, newest first — "Anna K., Warszawa" for a person, the entity's name alone for an organisation. The first page is server-rendered with the count and the map; the rest arrives when the reader asks. It is deliberately the one thing on the page that is not live.
+- **Still ahead:** the rest of the page anatomy ([#11](https://github.com/auditmos/petition-on-cf/issues/11)), the `init-project` extension ([#12](https://github.com/auditmos/petition-on-cf/issues/12)) and the one-click deploy ([#13](https://github.com/auditmos/petition-on-cf/issues/13)).
 
 ### Working on this repo
 
@@ -76,7 +78,7 @@ pnpm run db:migrate:dev          # applies migrations to the local D1
 pnpm dev                         # port 3000
 ```
 
-`pnpm db:seed:dev` fills the local database with 189 demo signatures spread unevenly across the voivodeships, so the counter has a number and the map has something to shade. It leaves one voivodeship empty and seven signatures unattributed on purpose — those are the two states easiest to break without noticing. Running it twice changes nothing; `scripts/seed-dev.sql` says how to empty the table again.
+`pnpm db:seed:dev` fills the local database with 195 demo signatures spread unevenly across the voivodeships, so the counter has a number, the map has something to shade and the supporters list has something to page through. It leaves one voivodeship empty and seven signatures unattributed on purpose, a third of the rows withhold the publication consent, and six of them are organisations rather than people — those are the states easiest to break without noticing. Running it twice changes nothing; `scripts/seed-dev.sql` says how to empty the table again.
 
 Read or write the local database directly with Wrangler — this is also how you add a single row and watch the counter move:
 
@@ -116,11 +118,11 @@ Base-stack documentation (testing projects, deploy runbook, error handling) live
 
 This template has **no auth surface, by design**. The petition site is entirely public, and an organizer reaches their own data with `wrangler d1` export queries from their machine rather than through a protected endpoint — so there is no admin panel, no account, and no password to leak.
 
-Every API route is public because every API route is meant to be. Health (`/api/health/*`) reports status. Signing (`POST /api/signatures`) is the one write path, and it is public for the same reason the form is. Its counterpart `GET /api/signatures/snapshot` returns a total and nothing else — no route reads a signature back out, and none will: the public list in issue [#10](https://github.com/auditmos/petition-on-cf/issues/10) serves only rows whose signer consented to appear.
+Every API route is public because every API route is meant to be. Health (`/api/health/*`) reports status. Signing (`POST /api/signatures`) is the one write path, and it is public for the same reason the form is. `GET /api/signatures/snapshot` returns a total and a per-region split, and nothing else. `GET /api/signatures/supporters` is the one route that reads signatures back out, and what it can return is bounded by the query rather than by a filter: it selects only rows whose signer ticked the publication consent, and of the surname it selects one character. There is no request it will answer with an e-mail address, a full surname or a consent flag.
 
 The write path is guarded by a trust pipeline rather than by authentication: **validate → Turnstile → per-IP rate limit → region attribution → unique-e-mail dedup**, in that order. A submission without a Turnstile token, or with one Cloudflare's siteverify does not approve, is refused with 403 before it reaches the database; a sixth submission from the same address inside a minute is refused with 429. The order matters — a signer who mistyped their e-mail is told that, rather than accused of being a robot, and a machine spends a challenge before it spends a rate-limit slot. **With the shipped test keys none of this stops anything**: read the next section before you deploy.
 
-TanStack Start server functions are the one exception to "public by default": they are same-origin RPC endpoints, so `src/start.tsx` registers a CSRF middleware that answers 403 to a cross-site call. It currently guards a single read of the public count, and it does not cover `POST /api/signatures`, which is a Hono route — nor would it help there, since a site with no session cookie gains an attacker nothing they could not do from their own server. It is the default the next server function inherits.
+TanStack Start server functions are the one exception to "public by default": they are same-origin RPC endpoints, so `src/start.tsx` registers a CSRF middleware that answers 403 to a cross-site call. It currently guards two reads — the public count and the list's first page — and it does not cover `POST /api/signatures`, which is a Hono route — nor would it help there, since a site with no session cookie gains an attacker nothing they could not do from their own server. It is the default the next server function inherits.
 
 That is a decision about what to build, not a claim that nothing needs guarding. Authentication attaches at `src/hono/factory.ts`: `createHono(...middleware)` accepts `ApiMiddleware` handlers and applies them to every route of the endpoint it builds, so a guard added there covers the whole surface instead of one handler. If you add an endpoint this template does not have, that is where it goes.
 
