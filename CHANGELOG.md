@@ -1,3 +1,10 @@
+# [1.13.0](https://github.com/auditmos/petition-on-cf/compare/v1.12.1...v1.13.0) (2026-09-07)
+
+
+### Features
+
+* **init-project:** interview the organizer for this deployment's identity ([50cfd63](https://github.com/auditmos/petition-on-cf/commit/50cfd635bab4f842ab4928cf840f916c56a808a4)), closes [#12](https://github.com/auditmos/petition-on-cf/issues/12)
+
 ## [1.12.1](https://github.com/auditmos/petition-on-cf/compare/v1.12.0...v1.12.1) (2026-09-07)
 
 
