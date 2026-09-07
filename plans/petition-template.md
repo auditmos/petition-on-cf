@@ -486,7 +486,17 @@ Deviation from the acceptance criteria's test strategy, and why:
 - **There is no Playwright suite.** The repository has no browser harness and the eight preceding slices shipped their E2E criteria as jsdom interaction tests plus a hand pass; adding a second test runtime for this slice was declined in favour of the same shape. What runs in `pnpm test` covers hero-CTA focus, every share URL, both clipboard outcomes, FAQ ARIA and independence, the stats sources, the section order and the navigation's targets.
 - **The 375 px criterion was met in a real browser rather than in jsdom**, which has no layout and could only have asserted class names. Driven with `agent-browser`: no horizontal overflow at 375 px in either language (`scrollWidth === 375`), the hero CTA scrolls the form to the top of the viewport and focuses its first control, the mobile menu closes and scrolls, the floating bar's spacer lets the last footer line clear it at the document end.
 
-Known and deliberately left alone: the navigation's items scroll to landing-page ids, so on a legal document page they do nothing. That predates this slice — the previous entries had the same problem — and fixing it means teaching the navigation to route home with a fragment, which is a change to a component this issue does not scope.
+### Follow-up — 2026-09-07: the navigation's dead end on a legal page
+
+The bar's entries name landing-page sections and the bar is rendered on the two legal documents too, where those sections do not exist — so an entry that could only scroll did nothing at all. It predated this slice, but a reader who opened the RODO clause from a consent checkbox and then clicks "Podpisz" is the likeliest person to meet it.
+
+Each entry is now a `Link` to the section's address rather than a `button` that scrolls. On the landing page the click is intercepted and the scroll happens in place; anywhere else the router follows the href, lands on the landing page and scrolls to the hash on arrival. Which of the two happens is decided by whether the section is in the document — not by whether the path looks like the landing page, because the section's presence is the actual question.
+
+The address bar is left alone on an in-page scroll. A reader who wants the deep link can copy it off the entry, and writing the hash on every click would turn the back button into an undo for scrolling.
+
+Being a link is worth more than the interception: it carries an address that can be copied, opened in a new tab, and followed with scripting off.
+
+Verified in Chrome, both languages and both viewports: from `/polityka-prywatnosci`, "Podpisz" goes to `/#podpisz` and puts the form at the top of the viewport; from `/en/polityka-prywatnosci` the entries carry `/en#…`; on `/` the scroll still happens with the URL unchanged; and the mobile sheet closes on the way out.
 
 ---
 

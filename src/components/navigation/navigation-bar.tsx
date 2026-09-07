@@ -8,6 +8,21 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import type { Content, Language } from "@/content";
 import { toLanguagePath } from "@/content/routing";
 
+/**
+ * The bar at the top, on every page of the site.
+ *
+ * Its entries name sections of the landing page, and the bar is also rendered
+ * on the two legal documents — where those sections do not exist. So each
+ * entry is a link to the section's address rather than a button that scrolls:
+ * on the landing page the click is intercepted and the scroll happens in
+ * place, and anywhere else the router follows the href, lands on the landing
+ * page and scrolls to the hash on arrival.
+ *
+ * Being a link is worth more than the interception. It carries an address a
+ * reader can copy or open in a new tab, it works with scripting off, and it is
+ * what a reader who opened the RODO clause from a consent checkbox needs when
+ * they want the form back.
+ */
 export function NavigationBar({
 	language,
 	path,
@@ -22,10 +37,24 @@ export function NavigationBar({
 	theme: Content["theme"];
 }) {
 	const [isOpen, setIsOpen] = React.useState(false);
+	const home = toLanguagePath("/", language);
 
-	const scrollToSection = (sectionId: string) => {
-		document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth", block: "start" });
+	/**
+	 * Scroll instead of navigating, but only when there is something to scroll
+	 * to. The section's presence is the question — not whether this looks like
+	 * the landing page — because that is exactly what the answer depends on.
+	 *
+	 * The address bar is deliberately left alone: a reader who wants the deep
+	 * link can copy it off the entry, and writing the hash on every click would
+	 * turn the back button into an undo for scrolling.
+	 */
+	const scrollToSection = (event: React.MouseEvent, sectionId: string) => {
+		const section = document.getElementById(sectionId);
 		setIsOpen(false);
+		if (!section) return;
+
+		event.preventDefault();
+		section.scrollIntoView({ behavior: "smooth", block: "start" });
 	};
 
 	return (
@@ -42,14 +71,15 @@ export function NavigationBar({
 
 				<div className="hidden items-center gap-1 lg:flex">
 					{copy.items.map((item) => (
-						<button
+						<Link
 							key={item.sectionId}
-							type="button"
-							onClick={() => scrollToSection(item.sectionId)}
-							className="rounded-md px-4 py-2 text-sm font-medium text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+							to={home}
+							hash={item.sectionId}
+							onClick={(event) => scrollToSection(event, item.sectionId)}
+							className="rounded-md px-4 py-2 text-sm font-medium text-white/80 no-underline transition-colors hover:bg-white/10 hover:text-white"
 						>
 							{item.label}
-						</button>
+						</Link>
 					))}
 
 					<div className="ml-2 flex items-center border-l border-white/20 pl-2 text-white">
@@ -75,14 +105,15 @@ export function NavigationBar({
 
 							<div className="flex flex-col gap-1 px-4">
 								{copy.items.map((item) => (
-									<button
+									<Link
 										key={item.sectionId}
-										type="button"
-										onClick={() => scrollToSection(item.sectionId)}
-										className="rounded-md px-4 py-3 text-left text-sm font-medium text-quiet transition-colors hover:bg-brand-soft hover:text-brand-dark"
+										to={home}
+										hash={item.sectionId}
+										onClick={(event) => scrollToSection(event, item.sectionId)}
+										className="rounded-md px-4 py-3 text-left text-sm font-medium text-quiet no-underline transition-colors hover:bg-brand-soft hover:text-brand-dark"
 									>
 										{item.label}
-									</button>
+									</Link>
 								))}
 							</div>
 						</SheetContent>
