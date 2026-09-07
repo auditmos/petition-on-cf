@@ -1,3 +1,10 @@
+# [1.12.0](https://github.com/auditmos/petition-on-cf/compare/v1.11.0...v1.12.0) (2026-09-07)
+
+
+### Features
+
+* **page:** make the landing page a petition, not a page about the template ([a1652a3](https://github.com/auditmos/petition-on-cf/commit/a1652a312536215e0021270a0d28d33501c14ee0)), closes [#11](https://github.com/auditmos/petition-on-cf/issues/11) [#11](https://github.com/auditmos/petition-on-cf/issues/11)
+
 # [1.11.0](https://github.com/auditmos/petition-on-cf/compare/v1.10.0...v1.11.0) (2026-09-07)
 
 
