@@ -2,6 +2,9 @@ import { VoivodeshipMap } from "@/components/map/voivodeship-map";
 import type { Content, Language } from "@/content";
 import type { SignatureCounts } from "@/core/signature-counts";
 
+/** The id the navigation scrolls to when a reader asks where support is. */
+export const MAP_SECTION_ID = "mapa";
+
 /**
  * The landing page's map block.
  *
@@ -25,7 +28,7 @@ export function MapSection({
 	nouns: Content["counter"]["nouns"];
 }) {
 	return (
-		<section className="border-t border-divider bg-ground py-20 sm:py-24">
+		<section id={MAP_SECTION_ID} className="border-t border-divider bg-ground py-20 sm:py-24">
 			<div className="mx-auto max-w-6xl px-6 lg:px-8">
 				<p className="text-xs font-medium uppercase tracking-wider text-quiet">{copy.eyebrow}</p>
 				<h2 className="mt-3 max-w-2xl text-3xl sm:text-4xl">{copy.heading}</h2>

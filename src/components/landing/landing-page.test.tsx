@@ -5,8 +5,17 @@ import {
 	createRouter,
 	RouterProvider,
 } from "@tanstack/react-router";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { COUNTER_SECTION_ID } from "@/components/landing/counter-section";
+import { FAQ_SECTION_ID } from "@/components/landing/faq-section";
+import { HERO_SECTION_ID } from "@/components/landing/hero-section";
 import { LandingPage } from "@/components/landing/landing-page";
+import { MAP_SECTION_ID } from "@/components/landing/map-section";
+import { MECHANISM_SECTION_ID } from "@/components/landing/mechanism-section";
+import { SHARE_SECTION_ID } from "@/components/landing/share-section";
+import { SIGN_SECTION_ID } from "@/components/landing/sign-section";
+import { STATS_SECTION_ID } from "@/components/landing/stats-section";
+import { SUPPORTERS_SECTION_ID } from "@/components/landing/supporters-section";
 import { getContent } from "@/content";
 import type { SignatureCounts } from "@/core/signature-counts";
 import type { SupporterPage } from "@/core/supporters";
@@ -182,12 +191,19 @@ describe("LandingPage, live count", () => {
 });
 
 describe("LandingPage, floating bar", () => {
+	/**
+	 * The bar itself, not its call to action: the hero's primary button says the
+	 * same words, as it should — both send the reader to the same form — so what
+	 * distinguishes them on the page is the labelled region one of them sits in.
+	 */
+	const bar = () => screen.queryByRole("complementary", { name: COPY.floatingBar.label });
+
 	it("keeps the bar away while the reader is still on the hero", async () => {
 		await renderPage(signed(3));
 
 		FakeObserver.reportAll(true);
 
-		expect(screen.queryByRole("link", { name: COPY.floatingBar.cta })).toBeNull();
+		expect(bar()).toBeNull();
 	});
 
 	it("brings the bar in once the hero is behind the reader", async () => {
@@ -195,8 +211,99 @@ describe("LandingPage, floating bar", () => {
 
 		FakeObserver.reportAll(false);
 
-		const cta = screen.getByRole("link", { name: COPY.floatingBar.cta });
-		expect(cta.getAttribute("href")).toBe("#podpisz");
+		const revealed = bar();
+		if (!revealed) throw new Error("the bar stayed away");
+		const cta = within(revealed).getByRole("link", { name: COPY.floatingBar.cta });
+		expect(cta.getAttribute("href")).toBe(`#${SIGN_SECTION_ID}`);
+	});
+});
+
+/**
+ * The page's anatomy, in the order a reader meets it.
+ *
+ * The order is an argument, not a layout preference: the case comes before the
+ * ask, the ask before the form, and everything that follows — who else signed,
+ * how to pass it on, what people worry about — comes after a reader has had
+ * the chance to sign. It is asserted over section ids rather than over
+ * headings because a campaign rewrites its headings and must not have to
+ * rewrite this test to do it.
+ */
+describe("LandingPage, anatomy", () => {
+	it("lays the sections out in the order the PRD argues for", async () => {
+		await renderPage(signed(3));
+
+		const sections = [...screen.getByRole("main").querySelectorAll("section")];
+
+		expect(sections.map((section) => section.id)).toEqual([
+			HERO_SECTION_ID,
+			STATS_SECTION_ID,
+			MECHANISM_SECTION_ID,
+			COUNTER_SECTION_ID,
+			SIGN_SECTION_ID,
+			MAP_SECTION_ID,
+			SUPPORTERS_SECTION_ID,
+			SHARE_SECTION_ID,
+			FAQ_SECTION_ID,
+		]);
+	});
+
+	// The navigation scrolls to an id. An entry naming a section that no longer
+	// exists is a menu item that silently does nothing, and the way that
+	// happens is a section being renamed or removed somewhere else.
+	it("offers navigation only to sections the page actually has", async () => {
+		await renderPage(signed(3));
+
+		for (const item of COPY.nav.items) {
+			expect(document.getElementById(item.sectionId)).not.toBeNull();
+		}
+	});
+});
+
+/**
+ * The hero's call to action, which is the page's primary one.
+ *
+ * User story 4: a visitor who has read the first screen wants to act without
+ * hunting for the form. Landing them beside it is not enough — a reader who
+ * arrived by keyboard would then have to tab back through everything between
+ * the hero and the fields — so the click both scrolls and hands over focus.
+ */
+describe("LandingPage, hero call to action", () => {
+	function clickHeroCta() {
+		const hero = document.getElementById(HERO_SECTION_ID);
+		if (!hero) throw new Error("the page rendered no hero");
+		fireEvent.click(within(hero).getByRole("link", { name: COPY.hero.primaryCta }));
+	}
+
+	it("scrolls the form into view", async () => {
+		await renderPage(signed(3));
+		const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView");
+
+		clickHeroCta();
+
+		expect(scrollIntoView.mock.instances[0]).toBe(document.getElementById(SIGN_SECTION_ID));
+	});
+
+	it("puts the cursor in the form", async () => {
+		await renderPage(signed(3));
+
+		clickHeroCta();
+
+		const form = document.getElementById(SIGN_SECTION_ID);
+		expect(form?.contains(document.activeElement)).toBe(true);
+		expect(document.activeElement?.tagName).toBe("INPUT");
+	});
+
+	// The scroll and the focus are what JavaScript adds. The anchor underneath
+	// is what still works without it, and what a reader gets when they copy the
+	// link rather than click it.
+	it("stays an ordinary link to the form", async () => {
+		await renderPage(signed(3));
+		const hero = document.getElementById(HERO_SECTION_ID);
+		if (!hero) throw new Error("the page rendered no hero");
+
+		const cta = within(hero).getByRole("link", { name: COPY.hero.primaryCta });
+
+		expect(cta.getAttribute("href")).toBe(`#${SIGN_SECTION_ID}`);
 	});
 });
 

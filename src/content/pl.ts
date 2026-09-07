@@ -7,21 +7,21 @@
  */
 export const pl = {
 	meta: {
-		title: "petition-on-cf — szablon strony petycji na Cloudflare Workers",
+		title: "Podpisz petycję „{{petitionName}}”",
 		description:
-			"Otwarty szablon strony petycji: formularz podpisu ze zgodami RODO, licznik podpisów na żywo, mapa poparcia i treści po polsku oraz po angielsku. Jedno wdrożenie to jedna petycja, w całości na Twoim koncie Cloudflare.",
+			"Petycja „{{petitionName}}”: czego dotyczy sprawa, czego żądamy od jej adresata i jak dołączyć do osób, które już ją podpisały. Podpis zajmuje minutę, a liczba podpisów jest widoczna na żywo.",
 		ogLocale: "pl_PL",
 	},
 
 	nav: {
-		brand: "petition-on-cf",
-		tagline: "Szablon petycji",
+		brand: "{{petitionName}}",
+		tagline: "Petycja",
 		items: [
-			{ label: "Zakres szablonu", sectionId: "funkcje" },
-			{ label: "Uruchomienie", sectionId: "start" },
-			{ label: "Architektura", sectionId: "architektura" },
+			{ label: "Dowody", sectionId: "dowody" },
+			{ label: "Czego żądamy", sectionId: "postulaty" },
+			{ label: "Podpisz", sectionId: "podpisz" },
+			{ label: "Pytania", sectionId: "pytania" },
 		],
-		repositoryLabel: "GitHub",
 		openMenuLabel: "Otwórz menu nawigacji",
 		menuTitle: "Nawigacja",
 	},
@@ -32,13 +32,13 @@ export const pl = {
 	},
 
 	hero: {
-		eyebrow: "Szablon open source · Cloudflare Workers",
-		headline: "Strona petycji, którą wdrażasz na własnym koncie",
-		lede: "Jedno wdrożenie to jedna petycja. Formularz podpisu ze zgodami RODO, licznik podpisów aktualizowany na żywo, mapa poparcia w województwach i treści po polsku oraz po angielsku. Wszystko działa na Twoim koncie Cloudflare — bez platformy pośredniczącej, bez abonamentu i bez oddawania komukolwiek danych osób podpisujących.",
-		primaryCta: "Zobacz repozytorium",
-		secondaryCta: "Przeczytaj założenia projektu",
-		noteLead: "Szablon powstaje na Twoich oczach.",
-		note: "Ta strona opisuje, co znajdzie się w gotowym szablonie i na jakim etapie jest każdy element. Nic tu nie jest prawdziwą petycją — formularz poniżej działa, ale zbiera podpisy wyłącznie na potrzeby pokazu.",
+		eyebrow: "Petycja obywatelska",
+		headline: "Jedno zdanie, dla którego ludzie podpisują tę petycję",
+		lede: "Tu wpisz, o co chodzi w sprawie i czego oczekujesz od adresata — dwa albo trzy zdania, bez żargonu i bez wstępu. Po ich przeczytaniu odwiedzający ma wiedzieć, pod czym się podpisuje, jeszcze zanim przewinie stronę niżej.",
+		primaryCta: "Podpisz petycję",
+		secondaryCta: "Zobacz, czego żądamy",
+		noteLead: "To jest wersja demonstracyjna.",
+		note: "Wdrożenie nie zostało jeszcze spersonalizowane: wszystkie teksty są ogólne, a nazwa petycji i dane organizatora pochodzą z pliku konfiguracyjnego. Formularz działa, ale zebrane podpisy służą wyłącznie do pokazu.",
 	},
 
 	counter: {
@@ -141,171 +141,124 @@ export const pl = {
 	},
 
 	stats: {
-		eyebrow: "Najważniejsze założenia",
-		heading: "Cztery decyzje, które opisują ten szablon",
+		eyebrow: "Dowody",
+		heading: "Skala sprawy w liczbach",
+		sourceLead: "Źródło",
 		facts: [
 			{
-				figure: "1",
-				label: "wdrożenie = jedna petycja",
-				note: "Model danych nie zna pojęcia „wiele petycji”. Druga sprawa to druga kopia repozytorium — dzięki temu nie ma panelu, kont ani wspólnej bazy, którą trzeba pilnować.",
+				figure: "00 000",
+				label: "osób, których dotyczy sprawa",
+				note: "Zacznij od liczby, która pokazuje skalę: ilu ludzi mierzy się z problemem opisanym w petycji. Wpisz tutaj własną — ta jest miejscem na nią, a nie danymi.",
+				source: "Nazwa raportu, instytucja, rok wydania",
 			},
 			{
-				figure: "2",
-				label: "języki treści: polski i angielski",
-				note: "Adres główny prowadzi na wersję polską, prefiks /en na angielską. Dokumenty prawne zostają po polsku, z wyraźną informacją o tym po angielsku.",
+				figure: "0 %",
+				label: "tyle osób popiera zmianę w badaniach",
+				note: "Jeśli ktoś zbadał opinię publiczną w tej sprawie, to najmocniejszy argument, jaki masz: pokazuje, że petycja nie jest głosem wąskiej grupy.",
+				source: "Nazwa badania, pracownia badawcza, rok",
+			},
+			{
+				figure: "00",
+				label: "lat bez zmiany przepisów",
+				note: "Czas jest argumentem sam w sobie. Data ostatniej nowelizacji mówi czytelnikowi, jak długo problem czeka na rozwiązanie.",
+				source: "Dziennik Ustaw — numer pozycji i rok",
 			},
 			{
 				figure: "0",
-				label: "usług spoza Cloudflare",
-				note: "Baza D1, Durable Object i Turnstile — nic poza tym. Szablon nigdy nie wysyła e-maili, więc nie potrzebuje dostawcy poczty ani domeny nadawcy.",
-			},
-			{
-				figure: "3",
-				label: "zgody przy podpisie",
-				note: "Obowiązkowe potwierdzenie zapoznania się z klauzulą RODO oraz dwie zgody dobrowolne: na publiczną listę poparcia i na wiadomości o przebiegu sprawy.",
+				label: "odpowiedzi na wcześniejsze wnioski",
+				note: "Petycja zwykle nie jest pierwszą próbą. Jeśli wcześniejsze pisma zostały bez odpowiedzi, napisz to wprost — to uzasadnia, dlaczego sprawa trafia do opinii publicznej.",
+				source: "Korespondencja organizatora, rok",
 			},
 		],
 	},
 
-	features: {
-		eyebrow: "Zakres szablonu",
-		heading: "Co znajdzie się na gotowej stronie",
-		lede: "Każdy element powstaje jako osobna, działająca całość. Etykieta przy nazwie mówi, w której fazie planu dany fragment jest budowany — nic z tej listy nie jest jeszcze ukończone.",
-		items: [
+	mechanism: {
+		eyebrow: "Czego żądamy",
+		heading: "O co prosimy adresata petycji",
+		lede: "Petycja działa wtedy, gdy prosi o coś konkretnego. Zamiast opisywać problem po raz drugi, wypisz tu żądania — każde sformułowane tak, żeby adresat wiedział, co ma zrobić, a osoba podpisująca wiedziała, pod czym się podpisuje.",
+		demands: [
 			{
-				key: "form",
-				title: "Formularz podpisu",
-				phase: "Faza 2 i 7",
+				title: "Pierwszy postulat — zmiana, o którą chodzi najbardziej",
 				description:
-					"Imię, nazwisko, adres e-mail i miejscowość, wybór między osobą prywatną a firmą oraz trzy pola zgód. Adres e-mail jest kluczem, po którym rozpoznawany jest ponowny podpis — kto podpisał drugi raz, dostaje życzliwy komunikat zamiast błędu.",
+					"Napisz, co konkretnie ma się zmienić: który przepis, która decyzja, która praktyka urzędu. Jedno zdanie, bez ogólników — to ono trafi do pisma przewodniego i do nagłówków.",
 			},
 			{
-				key: "live",
-				title: "Licznik podpisów na żywo",
-				phase: "Faza 5",
+				title: "Drugi postulat — termin",
 				description:
-					"Durable Object trzyma bieżące liczby i rozsyła je przez WebSocket, łącząc powiadomienia do jednego na sekundę. Gdy połączenie nie dojdzie do skutku, strona po cichu przechodzi na cykliczne odpytywanie i nigdy nie wygląda na zepsutą.",
+					"Żądanie bez terminu można odłożyć w nieskończoność. Podaj datę albo okres, w którym oczekujesz decyzji, i napisz, dlaczego akurat taki.",
 			},
 			{
-				key: "map",
-				title: "Mapa poparcia",
-				phase: "Faza 6",
+				title: "Trzeci postulat — jawność",
 				description:
-					"Mapa Polski z szesnastoma województwami, cieniowana liczbą podpisów i odświeżana razem z licznikiem. Województwo bierze się z kodu pocztowego albo z danych o zapytaniu, a nie z wpisanej ręcznie miejscowości — literówka nie psuje statystyki.",
-			},
-			{
-				key: "bots",
-				title: "Ochrona przed botami",
-				phase: "Faza 4",
-				description:
-					"Turnstile sprawdzany po stronie serwera, limit zgłoszeń z jednego adresu IP i odrzucanie powtórzonych adresów e-mail. Osoba podpisująca nie rozwiązuje żadnej łamigłówki, a liczba podpisów daje się obronić przed adresatem petycji.",
-			},
-			{
-				key: "list",
-				title: "Publiczna lista poparcia",
-				phase: "Faza 8",
-				description:
-					"Podzielona na strony lista w formacie „Imię N., Miejscowość” albo nazwa {{signerOrgNounGen}} — wyłącznie dla osób, które zaznaczyły zgodę na publikację. Kto zgody nie zaznaczył, nie pojawia się na niej nigdy.",
-			},
-			{
-				key: "legal",
-				title: "Warstwa prawna",
-				phase: "Faza 7",
-				description:
-					"Klauzula informacyjna dostępna bez opuszczania formularza oraz klauzula RODO i polityka prywatności jako zwykłe podstrony. Nazwy organizatora i adresata wstawiane są w teksty automatycznie z pliku konfiguracyjnego.",
-			},
-			{
-				key: "i18n",
-				title: "Dwie wersje językowe",
-				phase: "Faza 3",
-				description:
-					"Polska pod adresem głównym, angielska pod prefiksem /en, przełącznik zachowujący bieżącą stronę oraz znaczniki hreflang i Open Graph w obu językach. Cała treść mieszka w plikach sprawdzanych schematem, nie w kodzie komponentów.",
-			},
-			{
-				key: "data",
-				title: "Dostęp do danych",
-				phase: "Faza 10",
-				description:
-					"Zamiast panelu administracyjnego — gotowe zapytania wiersza poleceń: pełny eksport podpisów do pliku CSV i lista adresów osób, które zgodziły się na kontakt. Brak panelu oznacza brak logowania i brak powierzchni do zaatakowania.",
+					"Poproś o to, żeby odpowiedź była publiczna. Dzięki temu osoby, które podpisały, dowiedzą się o rozstrzygnięciu razem z Tobą, a sprawa nie kończy się na korespondencji między dwiema stronami.",
 			},
 		],
+		note: "Po zakończeniu zbiórki organizator przekaże adresatowi treść petycji wraz z liczbą i listą podpisów. Podpis nie jest głosem w wyborach ani wnioskiem urzędowym — jest publicznym poparciem dla powyższych żądań.",
 	},
 
-	howItWorks: {
-		eyebrow: "Uruchomienie",
-		heading: "Od kliknięcia do własnej petycji",
-		paths: [
-			{
-				step: "Droga pierwsza",
-				title: "Wdrożenie jednym kliknięciem",
-				phase: "Faza 11",
-				steps: [
-					"Przycisk „Deploy to Cloudflare” kopiuje repozytorium na Twoje konto GitHub.",
-					"Cloudflare zakłada bazę D1 i Durable Object na podstawie pliku konfiguracyjnego — bez klikania w panelu.",
-					"Migracje bazy wykonują się w ramach wdrożenia, więc świeża instalacja nigdy nie startuje bez tabel.",
-					"Strona działa od razu na testowych kluczach Turnstile: można podpisać się na próbę, zanim pojawią się prawdziwe klucze.",
-				],
-			},
-			{
-				step: "Droga druga",
-				title: "Dostosowanie do swojej sprawy",
-				phase: "Faza 10",
-				steps: [
-					"Sklonuj swoją kopię repozytorium i uruchom skrypt personalizacji.",
-					"Odpowiedz na pytania o nazwę petycji, organizatora, adresata, adres kontaktowy i domenę.",
-					"Wartości publiczne trafiają do pliku konfiguracyjnego, klucz prywatny Turnstile — wyłącznie do lokalnego pliku sekretów.",
-					"Wypchnij zmiany: dalsze wdrożenia robi już CI. Ponowne uruchomienie skryptu niczego nie nadpisuje.",
-				],
-			},
-		],
-		architecture: {
-			eyebrow: "Architektura",
-			heading: "Cztery zasady, od których nie ma odstępstw",
-			rules: [
-				{
-					term: "Baza D1 jest jedynym źródłem prawdy",
-					definition:
-						"Durable Object służy tylko za pamięć podręczną i nadajnik — po restarcie odtwarza liczniki z bazy i nigdy do niej nie zapisuje.",
-				},
-				{
-					term: "Zapis idzie w jedną stronę",
-					definition:
-						"Worker sprawdza zgłoszenie, zapisuje je w bazie, a dopiero potem powiadamia Durable Object, nie czekając na odpowiedź. Powtórzone adresy odsiewa ograniczenie unikalności w samej bazie.",
-				},
-				{
-					term: "W komponentach nie ma żadnych tekstów",
-					definition:
-						"Cała treść mieszka w plikach dla poszczególnych języków, sprawdzanych wspólnym schematem. Brak tłumaczenia zatrzymuje budowanie, a nie użytkownika na produkcji.",
-				},
-				{
-					term: "Nie ma logowania ani panelu",
-					definition:
-						"Strona jest w całości publiczna. Organizator sięga po dane gotowymi zapytaniami z wiersza poleceń, więc nie istnieje konto, które można przejąć.",
-				},
-			],
+	share: {
+		eyebrow: "Przekaż dalej",
+		heading: "Jeden udostępniony link to kilka kolejnych podpisów",
+		note: "Petycję podpisuje się najczęściej dlatego, że przysłał ją ktoś znajomy. Poniższe przyciski otwierają okno wybranego serwisu z gotowym linkiem — nic nie publikują za Ciebie i nie wysyłają żadnych danych o Tobie.",
+		message: "Podpisałam/podpisałem petycję „{{petitionName}}”. Przyłączysz się?",
+		networks: {
+			facebook: "Udostępnij na Facebooku",
+			x: "Udostępnij na X",
+			linkedin: "Udostępnij na LinkedInie",
+			whatsapp: "Wyślij przez WhatsApp",
 		},
+		copyLink: "Skopiuj link",
+		copied: "Link skopiowany do schowka.",
+		copyFailed: "Przeglądarka nie pozwoliła skopiować linku — zaznacz go w pasku adresu.",
 	},
 
 	faq: {
 		eyebrow: "Pytania",
-		heading: "Częste pytania",
-		items: [],
+		heading: "Zanim podpiszesz",
+		note: "Nie ma tu Twojego pytania? Napisz na {{contactEmail}} — odpowiedź, która przyda się innym, trafi na tę listę.",
+		items: [
+			{
+				question: "Kto zobaczy moje dane?",
+				answer:
+					"Imię, nazwisko, adres e-mail i miejscowość trafiają do bazy petycji i widzi je organizator. Publicznie pokazujemy wyłącznie podpisy osób, które zaznaczyły na to zgodę, i tylko w formie „Imię N., Miejscowość”. Adres e-mail nie jest publikowany nigdy.",
+			},
+			{
+				question: "Po co adres e-mail, skoro nic na niego nie wysyłacie?",
+				answer:
+					"Adres jest kluczem, po którym rozpoznajemy ponowny podpis — dzięki niemu liczba podpisów daje się obronić przed adresatem petycji. Wiadomości wysyłamy tylko wtedy, gdy zaznaczysz zgodę na informacje o przebiegu sprawy.",
+			},
+			{
+				question: "Czy mogę wycofać swój podpis?",
+				answer:
+					"Tak. Napisz na {{contactEmail}} z adresu, którym się podpisano, a podpis zostanie usunięty razem z danymi. Nie musisz podawać powodu.",
+			},
+			{
+				question: "Czy podpis w internecie ma jakąkolwiek moc?",
+				answer:
+					"Ta petycja to publiczne poparcie dla żądań opisanych wyżej, a nie wniosek składany w trybie ustawy o petycjach ani głos w wyborach. Jej siłą jest liczba osób, które podpisały, i to, że każda z nich jest policzalna oraz sprawdzalna.",
+			},
+			{
+				question: "Podpisuję w imieniu firmy albo organizacji — jak to zaznaczyć?",
+				answer:
+					"W formularzu wybierz „{{signerOrgNoun}}” zamiast osoby prywatnej. Pojawi się wtedy pole na nazwę, a jeśli wdrożenie o to prosi — także na Twoją funkcję. Na publicznej liście widoczna jest wtedy nazwa {{signerOrgNounGen}}, bez miejscowości.",
+			},
+		],
 	},
 
 	footer: {
-		name: "petition-on-cf",
+		name: "{{organizerName}}",
 		description:
-			"Szablon strony petycji na Cloudflare Workers. Rozwijany publicznie jako projekt otwarty — dokumenty poniżej opisują, co powstaje i w jakiej kolejności.",
-		documentsHeading: "Dokumenty",
-		documents: [
-			{ key: "repository", label: "Repozytorium na GitHubie" },
-			{ key: "prd", label: "Założenia projektu (PRD)" },
-			{ key: "plan", label: "Plan wdrożenia w fazach" },
-			{ key: "issues", label: "Zadania i postęp prac" },
-		],
+			"Organizator petycji „{{petitionName}}” i administrator danych osób, które ją podpisały.",
 		legalHeading: "Dokumenty prawne",
+		socialHeading: "Organizator w sieci",
+		socialNetworks: {
+			facebook: "Facebook",
+			x: "X",
+			linkedin: "LinkedIn",
+		},
 		disclaimer:
-			"Odpowiedzialność za zgodność treści prawnych konkretnej kampanii spoczywa na jej organizatorze.",
+			"Odpowiedzialność za zgodność treści prawnych tej kampanii spoczywa na jej organizatorze.",
+		colophon: "Zbudowane na szablonie petition-on-cf",
 		licenseLead: "Licencja",
 		licenseLabel: "MIT",
 	},

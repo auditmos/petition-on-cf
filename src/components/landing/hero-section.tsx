@@ -1,7 +1,8 @@
-import { ArrowRight, Github } from "lucide-react";
+import { ArrowRight, PenLine } from "lucide-react";
+import { MECHANISM_SECTION_ID } from "@/components/landing/mechanism-section";
+import { focusSignForm, SIGN_SECTION_ID } from "@/components/landing/sign-section";
 import { Button } from "@/components/ui/button";
 import type { Content } from "@/content";
-import { SITE_CONFIG } from "@/content/site-config";
 
 /**
  * The id the floating bar watches. It reveals itself when this section is no
@@ -10,6 +11,14 @@ import { SITE_CONFIG } from "@/content/site-config";
  */
 export const HERO_SECTION_ID = "hero";
 
+/**
+ * The first screen: what the petition asks for, and the way to sign it.
+ *
+ * The primary call to action stays an ordinary anchor to the form, so it works
+ * with scripting off and survives being copied as a link. What the click adds
+ * on top is the focus move — a reader who asked to sign should find the cursor
+ * in the form rather than at the top of a page that merely scrolled.
+ */
 export function HeroSection({ copy }: { copy: Content["hero"] }) {
 	return (
 		<section
@@ -34,16 +43,20 @@ export function HeroSection({ copy }: { copy: Content["hero"] }) {
 						asChild
 						className="group bg-white text-brand-dark hover:bg-white/90 hover:text-brand-deep"
 					>
-						<a href={SITE_CONFIG.repositoryUrl} target="_blank" rel="noopener noreferrer">
-							<Github className="mr-2 h-4 w-4" />
+						<a
+							href={`#${SIGN_SECTION_ID}`}
+							onClick={(event) => {
+								event.preventDefault();
+								focusSignForm();
+							}}
+						>
+							<PenLine className="mr-2 h-4 w-4" />
 							{copy.primaryCta}
 						</a>
 					</Button>
 
 					<a
-						href={SITE_CONFIG.prdUrl}
-						target="_blank"
-						rel="noopener noreferrer"
+						href={`#${MECHANISM_SECTION_ID}`}
 						className="group inline-flex items-center self-start border-b border-white/40 pb-1 text-sm font-medium text-white transition-colors hover:border-white sm:self-auto"
 					>
 						{copy.secondaryCta}

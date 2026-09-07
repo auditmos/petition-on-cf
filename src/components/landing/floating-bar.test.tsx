@@ -1,6 +1,7 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { FloatingBar } from "@/components/landing/floating-bar";
 import { getContent } from "@/content";
+import { canonicalUrl } from "@/content/head";
 
 /**
  * The bar that follows the reader down the page.
@@ -69,7 +70,7 @@ function renderBar(count = 1234) {
 	return render(
 		<>
 			<div id={HERO_ID} />
-			<FloatingBar count={count} language="pl" copy={COPY} watching={HERO_ID} />
+			<FloatingBar count={count} language="pl" copy={COPY} watching={HERO_ID} path="/" />
 		</>,
 	);
 }
@@ -139,10 +140,77 @@ describe("FloatingBar", () => {
 	// A page that never rendered the watched element would otherwise leave the
 	// bar hidden forever, which is a broken CTA nobody would think to look for.
 	it("stays out of the way when there is nothing to watch", () => {
-		render(<FloatingBar count={1} language="pl" copy={COPY} watching="nothing-here" />);
+		render(<FloatingBar count={1} language="pl" copy={COPY} watching="nothing-here" path="/" />);
 
 		expect(screen.queryByRole("link", { name: COPY.floatingBar.cta })).toBeNull();
 		expect(FakeObserver.instances).toHaveLength(0);
+	});
+});
+
+/**
+ * Passing the petition on, from wherever the reader got to.
+ *
+ * The share section is one screen among ten, and a reader who decides to send
+ * the link to somebody is unlikely to be standing on it when they decide. So
+ * the same four networks and the same copy-link ride along in the bar, beside
+ * the call to action that is there for the same reason.
+ *
+ * They are the same component as the section's, so the two cannot drift into
+ * sharing different URLs; what the bar changes is that the labels are read
+ * rather than shown, because a bar that spelled them out would not fit a
+ * phone.
+ */
+describe("FloatingBar, sharing", () => {
+	const bar = () => screen.getByRole("complementary", { name: COPY.floatingBar.label });
+
+	/** The address a network was handed, under whichever parameter it uses. */
+	function sharedUrl(href: string): string {
+		const parameters = new URL(href).searchParams;
+		return parameters.get("u") ?? parameters.get("url") ?? parameters.get("text") ?? "";
+	}
+
+	it("carries a link for every network the share section offers", () => {
+		renderBar();
+
+		FakeObserver.last.onScreen(false);
+
+		for (const label of Object.values(COPY.share.networks)) {
+			expect(within(bar()).getByRole("link", { name: label })).toBeTruthy();
+		}
+	});
+
+	it("hands every network the canonical address of the page being read", () => {
+		renderBar();
+		const expected = canonicalUrl("/", "pl");
+
+		FakeObserver.last.onScreen(false);
+
+		for (const label of Object.values(COPY.share.networks)) {
+			const href = within(bar()).getByRole("link", { name: label }).getAttribute("href") ?? "";
+			expect(sharedUrl(href)).toContain(expected);
+		}
+	});
+
+	it("offers the copy-link too, and writes the same address", async () => {
+		renderBar();
+
+		FakeObserver.last.onScreen(false);
+		fireEvent.click(within(bar()).getByRole("button", { name: COPY.share.copyLink }));
+
+		await waitFor(async () => {
+			expect(await navigator.clipboard.readText()).toBe(canonicalUrl("/", "pl"));
+		});
+	});
+
+	// The bar is not there at the top of the page, and neither is anything in
+	// it: a hidden share row would still be in the tab order on the one screen
+	// where the section's own buttons are the answer.
+	it("takes the share links away with it", () => {
+		renderBar();
+
+		FakeObserver.last.onScreen(true);
+
+		expect(screen.queryByRole("link", { name: COPY.share.networks.facebook })).toBeNull();
 	});
 });
 

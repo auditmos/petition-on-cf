@@ -6,6 +6,9 @@ import { parseSupporterPage, type Supporter, type SupporterPage } from "@/core/s
 /** Where the rest of the list comes from. The first page arrives as a prop. */
 const SUPPORTERS_PATH = "/api/signatures/supporters";
 
+/** The id the navigation scrolls to when a reader asks who has signed. */
+export const SUPPORTERS_SECTION_ID = "podpisali";
+
 /**
  * The people who agreed to be named.
  *
@@ -68,7 +71,7 @@ export function SupportersSection({
 	};
 
 	return (
-		<section className="border-t border-divider bg-paper py-20 sm:py-24">
+		<section id={SUPPORTERS_SECTION_ID} className="border-t border-divider bg-paper py-20 sm:py-24">
 			<div className="mx-auto max-w-6xl px-6 lg:px-8">
 				<p className="text-xs font-medium uppercase tracking-wider text-quiet">{copy.eyebrow}</p>
 				<h2 className="mt-3 max-w-2xl text-3xl sm:text-4xl">{copy.heading}</h2>

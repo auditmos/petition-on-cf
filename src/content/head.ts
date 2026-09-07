@@ -14,8 +14,16 @@ import { SITE_CONFIG } from "./site-config";
 type MetaTag = { title: string } | { name: string; content: string };
 type LinkTag = { rel: string; hreflang?: string; href: string };
 
-/** Absolute, because hreflang and Open Graph both refuse a relative path. */
-function absolute(path: string, language: Language): string {
+/**
+ * The one address this page answers to, in one language.
+ *
+ * Absolute, because hreflang and Open Graph both refuse a relative path — and
+ * because everything else that hands the URL to somebody else needs the same
+ * one. A share button reading `window.location` would send a preview
+ * deployment's hostname, or a proxy's, to somebody who cannot open it; the
+ * canonical URL is what the `<head>` already promises is this page.
+ */
+export function canonicalUrl(path: string, language: Language): string {
 	return `${SITE_CONFIG.siteUrl}${toLanguagePath(path, language)}`;
 }
 
@@ -38,7 +46,7 @@ export function buildHead(
 	page?: PageMeta,
 ): { meta: MetaTag[]; links: LinkTag[] } {
 	const meta = { ...getContent(language).meta, ...page };
-	const url = absolute(path, language);
+	const url = canonicalUrl(path, language);
 
 	return {
 		meta: [
@@ -58,11 +66,11 @@ export function buildHead(
 			...LANGUAGES.map((alternate) => ({
 				rel: "alternate",
 				hreflang: alternate,
-				href: absolute(path, alternate),
+				href: canonicalUrl(path, alternate),
 			})),
 			// Polish is what a reader with no language preference gets, which is
 			// the same statement as serving it without a prefix.
-			{ rel: "alternate", hreflang: "x-default", href: absolute(path, "pl") },
+			{ rel: "alternate", hreflang: "x-default", href: canonicalUrl(path, "pl") },
 			{ rel: "canonical", href: url },
 		],
 	};

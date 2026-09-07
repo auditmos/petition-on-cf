@@ -10,6 +10,15 @@
  * rather than inheriting it.
  */
 
+/**
+ * Scrolling, which jsdom has no layout to do.
+ *
+ * The method is absent rather than inert, so a component that scrolls a
+ * section into view throws before it can be asserted on. A no-op restores the
+ * call, and a test that cares which element was scrolled spies on it.
+ */
+Element.prototype.scrollIntoView ??= function scrollIntoView() {};
+
 class NoopResizeObserver implements ResizeObserver {
 	observe(): void {}
 	unobserve(): void {}
@@ -66,6 +75,29 @@ function createMemoryStorage(): Storage {
 if (typeof globalThis.localStorage?.getItem !== "function") {
 	Object.defineProperty(globalThis, "localStorage", {
 		value: createMemoryStorage(),
+		configurable: true,
+		writable: true,
+	});
+}
+
+/**
+ * The clipboard, in memory.
+ *
+ * jsdom ships none, and a copy-link button is exactly the kind of thing whose
+ * only observable effect is what was written. Storing it — rather than
+ * counting calls on a spy — lets a test assert the value the reader would
+ * paste, which is the behaviour, while a test about a browser that refuses the
+ * clipboard still stubs `writeText` itself.
+ */
+if (!navigator.clipboard) {
+	let written = "";
+	Object.defineProperty(navigator, "clipboard", {
+		value: {
+			writeText: async (text: string) => {
+				written = text;
+			},
+			readText: async () => written,
+		},
 		configurable: true,
 		writable: true,
 	});

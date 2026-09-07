@@ -8,21 +8,21 @@
  */
 export const en = {
 	meta: {
-		title: "petition-on-cf — a petition site template for Cloudflare Workers",
+		title: "Sign the “{{petitionName}}” petition",
 		description:
-			"An open-source petition site template: a signature form with GDPR consents, a live signature counter, a support map and content in Polish and English. One deployment is one petition, running entirely on your own Cloudflare account.",
+			"The “{{petitionName}}” petition: what the matter is, what we demand of its addressee, and how to join the people who have already signed. Signing takes a minute, and the running total is visible live.",
 		ogLocale: "en_GB",
 	},
 
 	nav: {
-		brand: "petition-on-cf",
-		tagline: "Petition template",
+		brand: "{{petitionName}}",
+		tagline: "Petition",
 		items: [
-			{ label: "What it covers", sectionId: "funkcje" },
-			{ label: "Getting started", sectionId: "start" },
-			{ label: "Architecture", sectionId: "architektura" },
+			{ label: "Evidence", sectionId: "dowody" },
+			{ label: "Demands", sectionId: "postulaty" },
+			{ label: "Sign", sectionId: "podpisz" },
+			{ label: "Questions", sectionId: "pytania" },
 		],
-		repositoryLabel: "GitHub",
 		openMenuLabel: "Open navigation menu",
 		menuTitle: "Navigation",
 	},
@@ -33,13 +33,13 @@ export const en = {
 	},
 
 	hero: {
-		eyebrow: "Open-source template · Cloudflare Workers",
-		headline: "A petition site you deploy on your own account",
-		lede: "One deployment is one petition. A signature form with GDPR consents, a counter that updates live, a map of support by region, and content in both Polish and English. All of it runs on your own Cloudflare account — no intermediary platform, no subscription, and nobody else holding your signers' data.",
-		primaryCta: "View the repository",
-		secondaryCta: "Read the project brief",
-		noteLead: "This template is being built in the open.",
-		note: "This page describes what the finished template will contain and how far each part has got. Nothing here is a real petition — the form below works, but it collects signatures for demonstration only.",
+		eyebrow: "A citizens' petition",
+		headline: "The one sentence people sign this petition for",
+		lede: "Write here what the matter is about and what you expect the addressee to do — two or three sentences, no jargon and no preamble. Having read them, a visitor should know what they are putting their name to before they scroll any further.",
+		primaryCta: "Sign the petition",
+		secondaryCta: "See what we demand",
+		noteLead: "This is a demonstration.",
+		note: "The deployment has not been personalised yet: every text is generic, and the petition's name and the organiser's details come from a configuration file. The form works, but the signatures it collects are for demonstration only.",
 	},
 
 	counter: {
@@ -144,171 +144,123 @@ export const en = {
 	},
 
 	stats: {
-		eyebrow: "The main decisions",
-		heading: "Four decisions that describe this template",
+		eyebrow: "Evidence",
+		heading: "The scale of the problem, in figures",
+		sourceLead: "Source",
 		facts: [
 			{
-				figure: "1",
-				label: "deployment = one petition",
-				note: "The data model has no concept of “many petitions”. A second cause is a second copy of the repository — which is why there is no admin panel, no accounts and no shared database to police.",
+				figure: "00,000",
+				label: "people affected by the problem",
+				note: "Start with the figure that shows the scale: how many people live with the problem the petition describes. Replace this one with your own — it is a place for a number, not a number.",
+				source: "Report title, institution, year of publication",
 			},
 			{
-				figure: "2",
-				label: "content languages: Polish and English",
-				note: "The root address serves Polish, the /en prefix serves English. Legal documents stay in Polish, with a clear notice about that in English.",
+				figure: "0%",
+				label: "support the change in surveys",
+				note: "If anyone has polled opinion on the matter, this is the strongest argument you have: it shows the petition is not the voice of a narrow group.",
+				source: "Survey title, polling institute, year",
+			},
+			{
+				figure: "00",
+				label: "years without a change in the law",
+				note: "Time is an argument in itself. The date of the last amendment tells a reader how long the problem has been waiting for a solution.",
+				source: "Journal of Laws — item number and year",
 			},
 			{
 				figure: "0",
-				label: "services outside Cloudflare",
-				note: "A D1 database, a Durable Object and Turnstile — nothing else. The template never sends e-mail, so it needs no mail provider and no sender domain.",
-			},
-			{
-				figure: "3",
-				label: "consents at signing",
-				note: "A mandatory acknowledgement of the GDPR notice, plus two optional consents: to appear on the public list of support, and to receive news about the cause.",
+				label: "replies to earlier requests",
+				note: "A petition is rarely the first attempt. If earlier letters went unanswered, say so plainly — it is what justifies bringing the matter to the public.",
+				source: "Organiser's correspondence, year",
 			},
 		],
 	},
 
-	features: {
-		eyebrow: "What it covers",
-		heading: "What the finished site will have",
-		lede: "Each part is built as a separate working whole. The label beside each name says which phase of the plan builds it — nothing on this list is finished yet.",
-		items: [
+	mechanism: {
+		eyebrow: "What we demand",
+		heading: "What we are asking the addressee to do",
+		lede: "A petition works when it asks for something specific. Rather than describing the problem a second time, list the demands here — each one worded so the addressee knows what to do, and the signer knows what they are putting their name to.",
+		demands: [
 			{
-				key: "form",
-				title: "Signature form",
-				phase: "Phases 2 and 7",
+				title: "First demand — the change that matters most",
 				description:
-					"First name, surname, e-mail address and town, a choice between a private person and an organisation, and three consent fields. The e-mail address is the key that recognises a repeat signature — anyone signing twice gets a friendly message rather than an error.",
+					"Write down what exactly has to change: which provision, which decision, which administrative practice. One sentence, no generalities — this is the one that goes into the covering letter and into the headlines.",
 			},
 			{
-				key: "live",
-				title: "Live signature counter",
-				phase: "Phase 5",
+				title: "Second demand — a deadline",
 				description:
-					"A Durable Object holds the current numbers and broadcasts them over WebSockets, coalescing notifications to one per second. If the connection cannot be established the page quietly falls back to polling and never looks broken.",
+					"A demand without a deadline can be postponed indefinitely. Give the date or the period within which you expect a decision, and say why that one.",
 			},
 			{
-				key: "map",
-				title: "Map of support",
-				phase: "Phase 6",
+				title: "Third demand — publication",
 				description:
-					"A map of Poland's sixteen voivodeships, shaded by signature count and refreshed alongside the counter. The region comes from the postal code or from request metadata rather than from a hand-typed town name, so a typo cannot distort the statistics.",
-			},
-			{
-				key: "bots",
-				title: "Bot protection",
-				phase: "Phase 4",
-				description:
-					"Turnstile verified server-side, a per-IP submission limit, and rejection of repeated e-mail addresses. The person signing solves no puzzle, and the signature count can be defended to whoever the petition is addressed to.",
-			},
-			{
-				key: "list",
-				title: "Public list of support",
-				phase: "Phase 8",
-				description:
-					"A paginated list in the form “First name S., Town”, or an organisation's name — only for people who ticked the consent to be published. Anyone who did not tick it never appears on it.",
-			},
-			{
-				key: "legal",
-				title: "Legal layer",
-				phase: "Phase 7",
-				description:
-					"The information notice available without leaving the form, plus the GDPR clause and the privacy policy as ordinary sub-pages. The organizer's and addressee's names are inserted into the texts automatically from the configuration file.",
-			},
-			{
-				key: "i18n",
-				title: "Two language versions",
-				phase: "Phase 3",
-				description:
-					"Polish at the root address, English under the /en prefix, a switcher that keeps you on the current page, and hreflang and Open Graph tags in both languages. All content lives in schema-validated files rather than in component code.",
-			},
-			{
-				key: "data",
-				title: "Access to the data",
-				phase: "Phase 10",
-				description:
-					"Instead of an admin panel — ready-made command-line queries: a full export of signatures to a CSV file, and a list of the addresses of people who agreed to be contacted. No panel means no login and no surface to attack.",
+					"Ask for the reply to be made public. That way everyone who signed learns the outcome when you do, and the matter does not end as correspondence between two parties.",
 			},
 		],
+		note: "Once the collection ends, the organiser will deliver the text of the petition to its addressee along with the number and the list of signatures. A signature is neither a vote nor a formal administrative request — it is public support for the demands above.",
 	},
 
-	howItWorks: {
-		eyebrow: "Getting started",
-		heading: "From one click to your own petition",
-		paths: [
-			{
-				step: "Path one",
-				title: "Deploy in a single click",
-				phase: "Phase 11",
-				steps: [
-					"The “Deploy to Cloudflare” button copies the repository to your GitHub account.",
-					"Cloudflare creates the D1 database and the Durable Object from the configuration file — with no clicking around the dashboard.",
-					"Database migrations run as part of the deployment, so a fresh installation never starts without its tables.",
-					"The site works immediately on Turnstile's test keys: you can sign as a trial run before the real keys exist.",
-				],
-			},
-			{
-				step: "Path two",
-				title: "Adapt it to your own cause",
-				phase: "Phase 10",
-				steps: [
-					"Clone your copy of the repository and run the personalisation script.",
-					"Answer its questions about the petition name, the organizer, the addressee, the contact address and the domain.",
-					"Public values go into the configuration file; the private Turnstile key goes only into the local secrets file.",
-					"Push your changes: CI handles every deployment from then on. Running the script again overwrites nothing.",
-				],
-			},
-		],
-		architecture: {
-			eyebrow: "Architecture",
-			heading: "Four rules with no exceptions",
-			rules: [
-				{
-					term: "The D1 database is the only source of truth",
-					definition:
-						"The Durable Object is a cache and a broadcaster only — after a restart it rebuilds its counters from the database, and it never writes to it.",
-				},
-				{
-					term: "Writes go one way",
-					definition:
-						"The Worker validates a submission, stores it in the database, and only then notifies the Durable Object without waiting for a reply. Repeated addresses are filtered out by the uniqueness constraint in the database itself.",
-				},
-				{
-					term: "Components contain no text at all",
-					definition:
-						"All content lives in per-language files validated by a shared schema. A missing translation stops the build rather than a user in production.",
-				},
-				{
-					term: "There is no login and no admin panel",
-					definition:
-						"The site is entirely public. The organizer reaches the data with ready-made command-line queries, so no account exists that could be taken over.",
-				},
-			],
+	share: {
+		eyebrow: "Pass it on",
+		heading: "One shared link is several more signatures",
+		note: "People usually sign a petition because somebody they know sent it to them. The buttons below open the chosen service with the link already filled in — they publish nothing on your behalf and send no data about you.",
+		message: "I have signed the petition “{{petitionName}}”. Will you join in?",
+		networks: {
+			facebook: "Share on Facebook",
+			x: "Share on X",
+			linkedin: "Share on LinkedIn",
+			whatsapp: "Send on WhatsApp",
 		},
+		copyLink: "Copy link",
+		copied: "Link copied to the clipboard.",
+		copyFailed: "The browser would not copy the link — select it in the address bar instead.",
 	},
 
 	faq: {
 		eyebrow: "Questions",
-		heading: "Frequently asked questions",
-		items: [],
+		heading: "Before you sign",
+		note: "Your question is not here? Write to {{contactEmail}} — an answer that helps others will join this list.",
+		items: [
+			{
+				question: "Who will see my details?",
+				answer:
+					"Your first name, surname, e-mail address and town go into the petition's database, where the organiser can see them. Publicly we show only the signatures of people who consented to it, and only as “First name S., Town”. The e-mail address is never published.",
+			},
+			{
+				question: "Why an e-mail address, if you send nothing to it?",
+				answer:
+					"The address is the key that recognises a repeat signature, which is what makes the total defensible to the petition's addressee. We send messages only if you tick the consent to hear how the matter progresses.",
+			},
+			{
+				question: "Can I withdraw my signature?",
+				answer:
+					"Yes. Write to {{contactEmail}} from the address you signed with and the signature will be deleted along with the data. You do not have to give a reason.",
+			},
+			{
+				question: "Does an online signature carry any weight?",
+				answer:
+					"This petition is public support for the demands set out above, not a request filed under the Polish Petitions Act and not a vote. Its force is the number of people who signed, and the fact that every one of them is countable and checkable.",
+			},
+			{
+				question: "I am signing for a company or an organisation — how?",
+				answer:
+					"In the form, choose an organisation rather than a private person. A field for the name appears, and — if this deployment asks for it — one for your role. The public list then shows the organisation's name, with no town beside it.",
+			},
+		],
 	},
 
 	footer: {
-		name: "petition-on-cf",
+		name: "{{organizerName}}",
 		description:
-			"A petition site template for Cloudflare Workers. Developed in the open — the documents below describe what is being built and in what order.",
-		documentsHeading: "Documents",
-		documents: [
-			{ key: "repository", label: "Repository on GitHub" },
-			{ key: "prd", label: "Project brief (PRD)" },
-			{ key: "plan", label: "Phased implementation plan" },
-			{ key: "issues", label: "Work items and progress" },
-		],
+			"Organiser of the “{{petitionName}}” petition and controller of the data of everyone who signed it.",
 		legalHeading: "Legal documents",
-		disclaimer:
-			"Responsibility for the legal texts of any given campaign rests with its organizer.",
+		socialHeading: "The organiser online",
+		socialNetworks: {
+			facebook: "Facebook",
+			x: "X",
+			linkedin: "LinkedIn",
+		},
+		disclaimer: "Responsibility for the legal texts of this campaign rests with its organizer.",
+		colophon: "Built on the petition-on-cf template",
 		licenseLead: "Licence",
 		licenseLabel: "MIT",
 	},

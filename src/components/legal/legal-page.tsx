@@ -3,6 +3,7 @@ import { LegalText } from "@/components/legal/legal-text";
 import { NavigationBar } from "@/components/navigation";
 import { getContent, type Language } from "@/content";
 import { getLegalText, type LegalDocumentName, legalDocumentPath } from "@/content/legal";
+import { SITE_CONFIG, socialLinks } from "@/content/site-config";
 
 /**
  * One legal document, as a page.
@@ -53,7 +54,12 @@ export function LegalPage({
 					<LegalText markdown={getLegalText(document)} language={language} />
 				</div>
 			</main>
-			<Footer copy={content.footer} legal={content.legal} language={language} />
+			<Footer
+				copy={content.footer}
+				legal={content.legal}
+				language={language}
+				socials={socialLinks(SITE_CONFIG)}
+			/>
 		</div>
 	);
 }

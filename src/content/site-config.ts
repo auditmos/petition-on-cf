@@ -63,6 +63,19 @@ export const SITE_CONFIG = {
 	 * the README's "Turnstile keys" section is the whole procedure.
 	 */
 	turnstileSiteKey: "1x00000000000000000000AA",
+	/**
+	 * The organizer's own profiles, linked from the footer.
+	 *
+	 * Empty is the shipped state and a valid one: a campaign with no LinkedIn
+	 * page is the normal case, and `socialLinks` below leaves out whatever is
+	 * blank. They ship empty rather than as plausible placeholders because an
+	 * invented profile URL either 404s or points a reader at a real stranger.
+	 * `init-project` (issue #12) asks for them and skipping the question is an
+	 * answer.
+	 */
+	facebookUrl: "",
+	xUrl: "",
+	linkedinUrl: "",
 	organizerStreet: "ul. Przykładowa 1",
 	organizerCity: "00-001 Miasto",
 	organizerKrs: "0000000000",
@@ -88,6 +101,32 @@ export const SITE_CONFIG = {
 } as const;
 
 export type SiteToken = keyof typeof SITE_CONFIG;
+
+/** The profiles a deployment may link to. */
+export type SocialNetwork = "facebook" | "x" | "linkedin";
+
+export type SocialLink = { network: SocialNetwork; url: string };
+
+/**
+ * The profiles this deployment actually has.
+ *
+ * The filtering lives here rather than in the footer because "an unset field is
+ * not a link" is a fact about the configuration, and a component that decided
+ * it could disagree with the next component that had to. The order is the one
+ * below, so filling a field in never reshuffles the row.
+ */
+export function socialLinks(config: {
+	facebookUrl: string;
+	xUrl: string;
+	linkedinUrl: string;
+}): SocialLink[] {
+	const configured: SocialLink[] = [
+		{ network: "facebook", url: config.facebookUrl },
+		{ network: "x", url: config.xUrl },
+		{ network: "linkedin", url: config.linkedinUrl },
+	];
+	return configured.filter((link) => link.url !== "");
+}
 
 /**
  * Whether this deployment asks a non-personal signer for their role in it.

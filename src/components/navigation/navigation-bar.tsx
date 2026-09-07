@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Github, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import * as React from "react";
 import { LanguageSwitcher } from "@/components/navigation/language-switcher";
 import { ThemeToggle } from "@/components/theme";
@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import type { Content, Language } from "@/content";
 import { toLanguagePath } from "@/content/routing";
-import { SITE_CONFIG } from "@/content/site-config";
 
 export function NavigationBar({
 	language,
@@ -53,16 +52,6 @@ export function NavigationBar({
 						</button>
 					))}
 
-					<a
-						href={SITE_CONFIG.repositoryUrl}
-						target="_blank"
-						rel="noopener noreferrer"
-						className="ml-2 inline-flex items-center gap-2 rounded-full border border-white/40 px-4 py-2 text-sm font-medium transition-colors hover:bg-white hover:text-brand-deep"
-					>
-						<Github className="h-4 w-4" />
-						{copy.repositoryLabel}
-					</a>
-
 					<div className="ml-2 flex items-center border-l border-white/20 pl-2 text-white">
 						<LanguageSwitcher language={language} path={path} copy={languageSwitch} />
 						<ThemeToggle copy={theme} variant="ghost" align="end" />
@@ -95,16 +84,6 @@ export function NavigationBar({
 										{item.label}
 									</button>
 								))}
-								<a
-									href={SITE_CONFIG.repositoryUrl}
-									target="_blank"
-									rel="noopener noreferrer"
-									onClick={() => setIsOpen(false)}
-									className="mt-2 inline-flex items-center gap-2 rounded-md px-4 py-3 text-sm font-medium text-quiet transition-colors hover:bg-brand-soft hover:text-brand-dark"
-								>
-									<Github className="h-4 w-4" />
-									{copy.repositoryLabel}
-								</a>
 							</div>
 						</SheetContent>
 					</Sheet>

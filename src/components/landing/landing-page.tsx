@@ -1,16 +1,18 @@
 import { useLiveCounts } from "@/components/counter/use-live-counts";
 import { CounterSection } from "@/components/landing/counter-section";
-import { FeaturesSection } from "@/components/landing/features-section";
+import { FaqSection } from "@/components/landing/faq-section";
 import { FloatingBar } from "@/components/landing/floating-bar";
 import { Footer } from "@/components/landing/footer";
 import { HERO_SECTION_ID, HeroSection } from "@/components/landing/hero-section";
-import { HowItWorksSection } from "@/components/landing/how-it-works-section";
 import { MapSection } from "@/components/landing/map-section";
+import { MechanismSection } from "@/components/landing/mechanism-section";
+import { ShareSection } from "@/components/landing/share-section";
 import { SignSection } from "@/components/landing/sign-section";
 import { StatsSection } from "@/components/landing/stats-section";
 import { SupportersSection } from "@/components/landing/supporters-section";
 import { NavigationBar } from "@/components/navigation";
 import { getContent, type Language } from "@/content";
+import { SITE_CONFIG, socialLinks } from "@/content/site-config";
 import type { SignatureCounts } from "@/core/signature-counts";
 import type { SupporterPage } from "@/core/supporters";
 
@@ -23,7 +25,14 @@ import type { SupporterPage } from "@/core/supporters";
  *
  * `path` is this page without a language prefix. The route supplies it as the
  * literal it already is, which is what keeps the language switcher out of the
- * router's state and therefore testable.
+ * router's state and therefore testable. The share section reads it too, for
+ * the same reason: the link a reader passes on has to be the canonical address
+ * of the page they are looking at, in the language they are looking at it in.
+ *
+ * The section order is the argument the page makes — the evidence and the
+ * demands before the form, everything a reader does *after* signing after it.
+ * `landing-page.test.tsx` pins it, because the order is a decision rather than
+ * a consequence of how the file happens to be written.
  *
  * `counts` and `supporters` are both what the loader read from D1 for the
  * first paint, and from there they part company. The counts go on one socket,
@@ -58,6 +67,8 @@ export function LandingPage({
 			/>
 			<main>
 				<HeroSection copy={content.hero} />
+				<StatsSection copy={content.stats} />
+				<MechanismSection copy={content.mechanism} />
 				<CounterSection count={live.total} language={language} copy={content.counter} />
 				<SignSection copy={content.sign} legal={content.legal} language={language} />
 				<MapSection
@@ -67,16 +78,21 @@ export function LandingPage({
 					nouns={content.counter.nouns}
 				/>
 				<SupportersSection page={supporters} copy={content.supporters} />
-				<StatsSection copy={content.stats} />
-				<FeaturesSection copy={content.features} />
-				<HowItWorksSection copy={content.howItWorks} />
+				<ShareSection copy={content.share} language={language} path={path} />
+				<FaqSection copy={content.faq} />
 			</main>
-			<Footer copy={content.footer} legal={content.legal} language={language} />
+			<Footer
+				copy={content.footer}
+				legal={content.legal}
+				language={language}
+				socials={socialLinks(SITE_CONFIG)}
+			/>
 			<FloatingBar
 				count={live.total}
 				language={language}
 				copy={content}
 				watching={HERO_SECTION_ID}
+				path={path}
 			/>
 		</div>
 	);

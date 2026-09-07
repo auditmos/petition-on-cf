@@ -1,6 +1,9 @@
 import { SignatureCount } from "@/components/counter/signature-count";
 import type { Content, Language } from "@/content";
 
+/** The id the navigation scrolls to when a reader asks how many have signed. */
+export const COUNTER_SECTION_ID = "podpisy";
+
 /**
  * The landing page's counter block.
  *
@@ -18,7 +21,7 @@ export function CounterSection({
 	copy: Content["counter"];
 }) {
 	return (
-		<section className="border-t border-divider bg-ground py-20 sm:py-24">
+		<section id={COUNTER_SECTION_ID} className="border-t border-divider bg-ground py-20 sm:py-24">
 			<div className="mx-auto max-w-6xl px-6 lg:px-8">
 				<p className="text-xs font-medium uppercase tracking-wider text-quiet">{copy.eyebrow}</p>
 

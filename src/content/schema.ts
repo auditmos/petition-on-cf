@@ -34,11 +34,15 @@ export const contentSchema = z.object({
 		ogLocale: line,
 	}),
 
+	/**
+	 * The bar at the top. `sectionId` names an element on the landing page, and
+	 * `landing-page.test.tsx` fails if one of them names nothing — a menu entry
+	 * that scrolls nowhere is the quiet result of a section being renamed.
+	 */
 	nav: z.object({
 		brand: line,
 		tagline: line,
 		items: z.array(z.object({ label: line, sectionId: line })),
-		repositoryLabel: line,
 		openMenuLabel: line,
 		menuTitle: line,
 	}),
@@ -187,39 +191,84 @@ export const contentSchema = z.object({
 		}),
 	}),
 
+	/**
+	 * The evidence, one entry per figure.
+	 *
+	 * `source` is required rather than optional, which is the whole decision:
+	 * a petition's credibility is the traceability of its numbers, and an
+	 * optional field is one a hurried campaign leaves empty. `sourceUrl` is
+	 * optional because some evidence is a page in a printed report.
+	 */
 	stats: section.extend({
-		facts: z.array(z.object({ figure: line, label: line, note: line })),
-	}),
-
-	features: section.extend({
-		lede: line,
-		/** `key` selects the icon; icons are components and stay in components. */
-		items: z.array(z.object({ key: line, title: line, phase: line, description: line })),
-	}),
-
-	howItWorks: section.extend({
-		paths: z.array(z.object({ step: line, title: line, phase: line, steps: z.array(line).min(1) })),
-		architecture: section.extend({
-			rules: z.array(z.object({ term: line, definition: line })),
-		}),
+		/** Introduces every source line — "Źródło", "Source". */
+		sourceLead: line,
+		facts: z.array(
+			z.object({
+				figure: line,
+				label: line,
+				note: line,
+				source: line,
+				sourceUrl: line.optional(),
+			}),
+		),
 	}),
 
 	/**
-	 * Reserved by the plan and modelled now so the section that renders it is a
-	 * component change rather than a schema change. Ships empty.
+	 * What the petition asks for, as separable demands rather than as prose.
+	 *
+	 * A signature is agreement to something specific, so the asks are a list a
+	 * reader can count and a campaign can extend without a schema change. At
+	 * least one, because a petition demanding nothing is not a petition.
 	 */
-	faq: section.extend({
-		items: z.array(z.object({ question: line, answer: line })),
+	mechanism: section.extend({
+		lede: line,
+		demands: z.array(z.object({ title: line, description: line })).min(1),
+		/** What happens to the demands once the collection ends. */
+		note: line,
 	}),
 
+	/**
+	 * Passing the petition on.
+	 *
+	 * The network names are copy rather than constants because what the label
+	 * says is "share on X", not "X" — a phrase that translates and that a
+	 * screen reader announces as an action.
+	 */
+	share: section.extend({
+		note: line,
+		/** The sentence that travels with the link where a network accepts one. */
+		message: line,
+		networks: z.object({ facebook: line, x: line, linkedin: line, whatsapp: line }),
+		copyLink: line,
+		/** Confirms the address is on the reader's clipboard. */
+		copied: line,
+		/** Said when the browser refused the clipboard, so the reader can select it. */
+		copyFailed: line,
+	}),
+
+	faq: section.extend({
+		note: line,
+		items: z.array(z.object({ question: line, answer: line })).min(1),
+	}),
+
+	/**
+	 * Who is behind the petition, and where its documents are.
+	 *
+	 * The identity block is not decoration: the consent texts above it name an
+	 * administrator, and a reader who wants to check that claim — or to write
+	 * to them — should not have to open a legal document to find an address.
+	 */
 	footer: z.object({
 		name: line,
 		description: line,
-		documentsHeading: line,
-		documents: z.array(z.object({ key: line, label: line })),
-		/** Heads the second list: this deployment's own legal documents. */
+		/** Heads this deployment's own legal documents. */
 		legalHeading: line,
+		socialHeading: line,
+		/** What each profile link is called; shown only for a configured profile. */
+		socialNetworks: z.object({ facebook: line, x: line, linkedin: line }),
 		disclaimer: line,
+		/** One link back to the software, whole — never a sentence split around it. */
+		colophon: line,
 		licenseLead: line,
 		licenseLabel: line,
 	}),

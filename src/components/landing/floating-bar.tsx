@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { formatCount } from "@/components/counter/signature-count";
+import { ShareLinks } from "@/components/landing/share-links";
+import { SIGN_SECTION_ID } from "@/components/landing/sign-section";
 import { Button } from "@/components/ui/button";
 import type { Content, Language } from "@/content";
+import { canonicalUrl } from "@/content/head";
 
 /**
  * The bar that follows the reader down the page: the live count, and a way
@@ -23,12 +26,15 @@ export function FloatingBar({
 	language,
 	copy,
 	watching,
+	path,
 }: {
 	count: number;
 	language: Language;
 	copy: Content;
 	/** Id of the element whose leaving the screen brings the bar in. */
 	watching: string;
+	/** This page without a language prefix, for the links that share it. */
+	path: string;
 }) {
 	const [past, setPast] = useState(false);
 
@@ -74,21 +80,41 @@ export function FloatingBar({
 					 * region showing the same value would announce every signature
 					 * twice.
 					 */}
-					<p className="flex min-w-0 items-baseline gap-2 whitespace-nowrap">
+					{/*
+					 * `shrink-0`: the count is the one thing in the row that must not
+					 * give way. Left shrinkable it is squeezed to a few pixels by the
+					 * icons beside it on a narrow screen — a bar whose whole left-hand
+					 * job is to show a number, showing a sliver of one.
+					 */}
+					<p className="flex shrink-0 items-baseline gap-2 whitespace-nowrap">
 						<span
 							data-testid="floating-bar-figure"
 							className="font-display text-2xl tabular-nums text-brand"
 						>
 							{figure}
 						</span>
-						<span data-testid="floating-bar-noun" className="truncate text-sm text-quiet">
+						{/*
+						 * The noun is the first thing to go on a narrow screen. The
+						 * figure beside a count of signatures is legible without it,
+						 * and the room it frees is what lets the share icons ride
+						 * along on a phone — which is where a shared link mostly gets
+						 * opened in the first place.
+						 */}
+						<span
+							data-testid="floating-bar-noun"
+							className="hidden truncate text-sm text-quiet sm:inline"
+						>
 							{noun}
 						</span>
 					</p>
 
-					<Button asChild size="sm" className="shrink-0">
-						<a href={`#${SIGN_SECTION_ID}`}>{copy.floatingBar.cta}</a>
-					</Button>
+					<div className="flex shrink-0 items-center gap-1 sm:gap-3">
+						<ShareLinks copy={copy.share} url={canonicalUrl(path, language)} variant="compact" />
+
+						<Button asChild size="sm" className="shrink-0">
+							<a href={`#${SIGN_SECTION_ID}`}>{copy.floatingBar.cta}</a>
+						</Button>
+					</div>
 				</div>
 			</aside>
 		</>
@@ -105,6 +131,3 @@ export function FloatingBar({
  * than the space it reserved.
  */
 const BAR_HEIGHT = "h-16";
-
-/** Where the bar's call to action goes. The sign section answers to this id. */
-const SIGN_SECTION_ID = "podpisz";

@@ -66,8 +66,10 @@ function proseIn(source: string): string[] {
 	const quoted = cleaned.match(/"[^"\n]{4,}"|'[^'\n]{4,}'/g) ?? [];
 	for (const literal of quoted) {
 		const text = literal.slice(1, -1);
-		// Tailwind class strings are many words and none of them are prose.
-		if (/^[a-z0-9:/[\]().,%-]+(\s+[a-z0-9:/[\]().,%-]+)*$/.test(text)) continue;
+		// Tailwind class strings are many words and none of them are prose. The
+		// `=` is Tailwind v4's arbitrary variants — `group-data-[state=open]:` —
+		// which read as one lowercase token like every other utility here.
+		if (/^[a-z0-9:/[\]().,%=-]+(\s+[a-z0-9:/[\]().,%=-]+)*$/.test(text)) continue;
 		// A CSS media query — `(prefers-color-scheme: dark)` — reads as two
 		// words to the check below and is addressed to the browser rather than
 		// to a reader. It is the one syntax the class-string filter misses.
