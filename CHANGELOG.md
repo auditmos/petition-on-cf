@@ -1,3 +1,10 @@
+## [1.12.1](https://github.com/auditmos/petition-on-cf/compare/v1.12.0...v1.12.1) (2026-09-07)
+
+
+### Bug Fixes
+
+* **nav:** give the menu entries somewhere to go from a legal page ([ade8e2c](https://github.com/auditmos/petition-on-cf/commit/ade8e2c44be1b073815a8d07d28ba71c1721e17c)), closes [#podpisz](https://github.com/auditmos/petition-on-cf/issues/podpisz)
+
 # [1.12.0](https://github.com/auditmos/petition-on-cf/compare/v1.11.0...v1.12.0) (2026-09-07)
 
 
