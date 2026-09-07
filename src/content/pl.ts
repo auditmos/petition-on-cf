@@ -176,6 +176,8 @@ export const pl = {
 		eyebrow: "Czego żądamy",
 		heading: "O co prosimy adresata petycji",
 		lede: "Petycja działa wtedy, gdy prosi o coś konkretnego. Zamiast opisywać problem po raz drugi, wypisz tu żądania — każde sformułowane tak, żeby adresat wiedział, co ma zrobić, a osoba podpisująca wiedziała, pod czym się podpisuje.",
+		addresseeLabel: "Adresat petycji",
+		addressee: "{{petitionAddressee}}",
 		demands: [
 			{
 				title: "Pierwszy postulat — zmiana, o którą chodzi najbardziej",

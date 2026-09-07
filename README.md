@@ -4,7 +4,7 @@
 
 A **template for running a public petition site** on Cloudflare Workers — one deployment = one petition, modeled on the excellent UX of [150proc.pl](https://150proc.pl/): hero → evidence with cited sources → mechanism → signature form → live counter and Poland map → public supporters list → share → FAQ.
 
-> **Status: in development.** Planning is complete; implementation is landing as vertical slices. Signing works end to end — form, persistence, bot check, rate limit, region attribution, in Polish and English — and the counter is live, but the map, the supporters list and the full legal layer are still ahead. See [Current state](#current-state) before running anything.
+> **Status: in development.** Eleven of the twelve slices have landed: the site signs, counts, maps, publishes, reads as a petition in both languages, and `pnpm run init-project` personalizes it. What remains is the one-click Deploy to Cloudflare pipeline. See [Current state](#current-state) before running anything.
 
 ## What this template delivers (when complete)
 
@@ -41,21 +41,21 @@ Implementation is dispatched as dependency-ordered tracer-bullet slices — each
 | Issue | Slice | Status |
 |---|---|---|
 | [#2](https://github.com/auditmos/petition-on-cf/issues/2) | D1 walking skeleton (Neon → D1, demo cleanup, `signatures` schema) | **landed** |
-| [#3](https://github.com/auditmos/petition-on-cf/issues/3) | Legal text capture from 150proc.pl (verbatim fixtures) — HITL | planned |
+| [#3](https://github.com/auditmos/petition-on-cf/issues/3) | Legal text capture from 150proc.pl (verbatim fixtures) — HITL | **landed** |
 | [#4](https://github.com/auditmos/petition-on-cf/issues/4) | Minimal sign path | **landed** |
 | [#5](https://github.com/auditmos/petition-on-cf/issues/5) | Content module + PL/EN routing | **landed** |
 | [#6](https://github.com/auditmos/petition-on-cf/issues/6) | Trust pipeline: Turnstile, rate limit, geo | **landed** |
 | [#7](https://github.com/auditmos/petition-on-cf/issues/7) | Live counter DO + floating bar | **landed** |
-| [#8](https://github.com/auditmos/petition-on-cf/issues/8) | Voivodeship map | planned |
-| [#9](https://github.com/auditmos/petition-on-cf/issues/9) | Full legal layer | planned |
-| [#10](https://github.com/auditmos/petition-on-cf/issues/10) | Supporters list | planned |
-| [#11](https://github.com/auditmos/petition-on-cf/issues/11) | Full page anatomy + mobile pass | planned |
-| [#12](https://github.com/auditmos/petition-on-cf/issues/12) | init-project extension | planned |
+| [#8](https://github.com/auditmos/petition-on-cf/issues/8) | Voivodeship map | **landed** |
+| [#9](https://github.com/auditmos/petition-on-cf/issues/9) | Full legal layer | **landed** |
+| [#10](https://github.com/auditmos/petition-on-cf/issues/10) | Supporters list | **landed** |
+| [#11](https://github.com/auditmos/petition-on-cf/issues/11) | Full page anatomy + mobile pass | **landed** |
+| [#12](https://github.com/auditmos/petition-on-cf/issues/12) | init-project extension | **landed** |
 | [#13](https://github.com/auditmos/petition-on-cf/issues/13) | Deploy to Cloudflare button + acceptance run — HITL | planned |
 
 ## Current state
 
-The repo was generated from [tstack-on-cf](https://github.com/auditmos/tstack-on-cf) (TanStack Start + Hono on Workers, Drizzle, Zod, Shadcn/UI, Biome + Vitest + knip). Eight slices have landed on top of it:
+The repo was generated from [tstack-on-cf](https://github.com/auditmos/tstack-on-cf) (TanStack Start + Hono on Workers, Drizzle, Zod, Shadcn/UI, Biome + Vitest + knip). Eleven of the twelve slices have landed on top of it:
 
 - **Persistence is Cloudflare D1**, reached through Drizzle's SQLite driver behind `src/db/setup.ts`. The `signatures` table ships as a migration, and the landing page server-renders the total count from it — the number is in the first byte of HTML, not fetched afterwards.
 - **The demo `clients` domain is gone**, along with the Neon driver, its three credentials, and the seed script.
@@ -64,7 +64,9 @@ The repo was generated from [tstack-on-cf](https://github.com/auditmos/tstack-on
 - **The counter is live.** A `LiveCounter` Durable Object holds the counts, rebuilds them from D1 whenever it is asked cold, and pushes them over a hibernatable WebSocket to every open page — coalesced to about one push a second, with a 30-second reconciliation heartbeat behind it. A page that cannot open a socket falls back to polling `/api/signatures/snapshot` without saying so. The floating bar arrives once the hero is behind the reader and carries the same number.
 - **The map and the legal layer are in.** Sixteen voivodeships shaded by the codes the pipeline stores, every count also written out beside the drawing; the RODO clause and the privacy policy served as real routes from tokenized Markdown.
 - **The supporters list is public and consent-gated.** `GET /api/signatures/supporters` pages through the signers who ticked the publication consent, newest first — "Anna K., Warszawa" for a person, the entity's name alone for an organisation. The first page is server-rendered with the count and the map; the rest arrives when the reader asks. It is deliberately the one thing on the page that is not live.
-- **Still ahead:** the rest of the page anatomy ([#11](https://github.com/auditmos/petition-on-cf/issues/11)), the `init-project` extension ([#12](https://github.com/auditmos/petition-on-cf/issues/12)) and the one-click deploy ([#13](https://github.com/auditmos/petition-on-cf/issues/13)).
+- **The page is a petition, not a page about the template.** Nine sections in one order — hero, evidence, demands, counter, form, map, supporters, share, FAQ — with every statistic carrying a mandatory source and share links hand-built rather than loaded from a network's script.
+- **`init-project` interviews you for the identity.** One pass writes the petition name and addressee, the organizer's legal, prose and four declined short names, their registered address and registry numbers, the contact e-mail, the domain, the word this deployment uses for a signer that is not a person — declined into the cases the copy needs — and, optionally, the social profiles and real Turnstile keys. Public values go to `src/content/site-config.ts`; the Turnstile secret goes to `.dev.vars` and nowhere else. Re-running never overwrites an answer, so it is safe to stop halfway and come back.
+- **Still ahead:** the one-click deploy ([#13](https://github.com/auditmos/petition-on-cf/issues/13)).
 
 ### Working on this repo
 
@@ -160,6 +162,57 @@ pnpm exec wrangler secret put TURNSTILE_SECRET_KEY --env production
 To watch the failure path by hand, put `2x00000000000000000000AB` (Cloudflare's always-*blocks* site key) in the config and submit the form: the bot-check message appears instead of the success state.
 
 `src/secrets-contract.test.ts` fails the build if a secret key ever appears in the source, if the content files mention one, or if the Worker reads it from anywhere but its env binding.
+
+## Getting the signatures out
+
+There is no admin panel and no export endpoint — [by design](#security-posture). An organizer reads their own data with Wrangler, from their own machine, against the environment they name. Both queries below emit CSV with a header row, and both need [`jq`](https://jqlang.github.io/jq/): `wrangler d1 execute --json` returns JSON, and the CSV shaping happens locally rather than in SQL so the same command works against any environment.
+
+Swap `--env production` for `--env staging`, or `--local` for the database on your own machine. `--remote` is the flag that means "the real one".
+
+#### Full signature export
+
+Everything the petition holds, newest last, for delivering the petition to its addressee.
+
+```bash
+pnpm exec wrangler d1 execute DB --env production --remote --json \
+  --command "SELECT id, first_name, surname, email, city, postal_code, signer_type, company_name, signer_role, voivodeship_code, consent_rodo, consent_public_list, consent_updates, datetime(created_at, 'unixepoch') AS signed_at FROM signatures ORDER BY created_at" \
+  | jq -r '.[0].results | (.[0] | keys_unsorted), (.[] | [.[]]) | @csv' > signatures.csv
+```
+
+| Column | What it holds |
+| --- | --- |
+| `id` | UUID of the signature |
+| `first_name` | As given |
+| `surname` | In full — the public list only ever shows its initial |
+| `email` | The dedup key; unique across the table |
+| `city` | Free text, shown as typed, never matched against a dictionary |
+| `postal_code` | `NN-NNN` or empty — always optional |
+| `signer_type` | `person` or `company` |
+| `company_name` | The entity's name, empty for a private person |
+| `signer_role` | Their role in it, empty unless this deployment asks for one |
+| `voivodeship_code` | ISO 3166-2:PL, or empty where attribution failed |
+| `consent_rodo` | `1` — mandatory, stored so the record shows what was agreed |
+| `consent_public_list` | `1` where the signature may be published |
+| `consent_updates` | `1` where they asked to hear how it went |
+| `signed_at` | UTC, `YYYY-MM-DD HH:MM:SS` |
+
+#### Supporters who asked for updates
+
+The only people this campaign may write to. Nothing in this template sends e-mail — there is no provider and no sending code — so this list is for pasting into whatever you do send with, and the consent is the whole basis for having it.
+
+```bash
+pnpm exec wrangler d1 execute DB --env production --remote --json \
+  --command "SELECT email, first_name, surname FROM signatures WHERE consent_updates = 1 ORDER BY created_at" \
+  | jq -r '.[0].results | (.[0] | keys_unsorted), (.[] | [.[]]) | @csv' > updates-consent.csv
+```
+
+| Column | What it holds |
+| --- | --- |
+| `email` | Where to write |
+| `first_name` | For addressing them by name |
+| `surname` | In full |
+
+Both files are personal data the moment they exist. `src/db/signatures/export-queries.test.ts` fails the build if a documented column stops matching what the query returns.
 
 ## Planning artifacts
 

@@ -6,15 +6,26 @@
  * 2. Rename root package.json + wrangler.jsonc (skip if already renamed).
  * 3. Warn if wrangler.jsonc lacks env.staging / env.production blocks.
  * 4. Fan out *.example templates into per-environment files (skip if exists).
- * 5. Print a next-steps checklist.
+ * 5. Interview for this deployment's identity (see `personalize.ts`).
+ * 6. Print a next-steps checklist.
  */
 
 import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
+import { type Ask, personalize } from "./personalize";
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+/**
+ * The project this run is bootstrapping.
+ *
+ * Normally the repository this file sits in. `INIT_PROJECT_ROOT` overrides it
+ * so the tests can run the real script — process, stdin and all — against
+ * throwaway copies of the files rather than against this repository, which is
+ * the only way to prove that a piped run actually works end to end.
+ */
+const ROOT =
+	process.env.INIT_PROJECT_ROOT ?? path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const ORIGINAL_WORKER_NAME = "tanstack-start-app";
 
 type RenameTarget =
@@ -50,6 +61,9 @@ const NEXT_STEPS = [
 	"Before deploying:",
 	"  Create the databases: wrangler d1 create <name> (once per environment)",
 	"  Paste each id over the all-zero database_id placeholders in wrangler.jsonc.",
+	"  Push the Turnstile secret to each environment it will run in:",
+	"    wrangler secret put TURNSTILE_SECRET_KEY --env staging",
+	"  The answer above only reached .dev.vars, which stays on this machine.",
 	"(optional) Set CLOUDFLARE_ACCOUNT_ID + CLOUDFLARE_API_TOKEN in .env",
 	"  or run `wrangler login` instead.",
 ];
@@ -60,14 +74,45 @@ function abs(...segments: string[]): string {
 	return path.join(ROOT, ...segments);
 }
 
-async function prompt(question: string): Promise<string> {
-	const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-	return new Promise((resolve) => {
-		rl.question(question, (answer) => {
-			rl.close();
-			resolve(answer.trim());
-		});
+/**
+ * One question at a time, pulling one line of stdin for each.
+ *
+ * Iterating the interface rather than calling `rl.question` per prompt is the
+ * whole of what makes a piped run work. `question` waits for the *next* `line`
+ * event, and on a pipe readline emits every buffered line the moment the chunk
+ * arrives — so answers two onward are announced to nobody and lost, and the
+ * run finishes having read exactly one of them. The async iterator pauses the
+ * stream between pulls instead, so each question consumes exactly its own
+ * line. Interactively the two are indistinguishable, which is what makes the
+ * per-question version such a convincing mistake.
+ *
+ * A pipe that runs out reads as skipped, so `echo my-app | init-project`
+ * renames the project rather than blocking on an answer that is not coming.
+ */
+function asker(): { line: (question: string) => Promise<string>; close: () => void } {
+	const interactive = process.stdin.isTTY === true;
+	const rl = readline.createInterface({
+		input: process.stdin,
+		output: process.stdout,
+		terminal: interactive,
 	});
+	const lines = rl[Symbol.asyncIterator]();
+	return {
+		line: async (question) => {
+			process.stdout.write(question);
+			const next = await lines.next();
+			if (next.done) {
+				process.stdout.write("\n");
+				return "";
+			}
+			// A terminal echoes what was typed; a pipe does not, and without this
+			// the transcript of a scripted run is every question on one line with
+			// no sign of which answer went where.
+			if (!interactive) process.stdout.write(`${next.value}\n`);
+			return next.value.trim();
+		},
+		close: () => rl.close(),
+	};
 }
 
 function readJson<T = unknown>(file: string): T {
@@ -145,7 +190,7 @@ function symbolFor(result: RenameResult | FanoutResult): string {
 // ── steps ────────────────────────────────────────────────────────────
 
 function stepRename(name: string): void {
-	console.log("[1/4] Rename project references");
+	console.log("[1/5] Rename project references");
 	for (const target of RENAME_TARGETS) {
 		const result = applyRename(target, name);
 		console.log(`      ${symbolFor(result)} ${target.file} (${result})`);
@@ -153,7 +198,7 @@ function stepRename(name: string): void {
 }
 
 function stepVerifyWrangler(): void {
-	console.log("\n[2/4] Verify wrangler env blocks");
+	console.log("\n[2/5] Verify wrangler env blocks");
 	const warnings = WRANGLER_FILES.flatMap((w) => checkWranglerEnvs(abs(w), REQUIRED_WRANGLER_ENVS));
 	if (warnings.length === 0) {
 		console.log(`      ✓ all wrangler.jsonc declare ${REQUIRED_WRANGLER_ENVS.join(", ")}`);
@@ -164,7 +209,7 @@ function stepVerifyWrangler(): void {
 }
 
 function stepFanoutEnv(): void {
-	console.log("\n[3/4] Create per-environment env files");
+	console.log("\n[3/5] Create per-environment env files");
 	for (const { template, targets } of ENV_TEMPLATES) {
 		for (const target of targets) {
 			const result = fanoutEnv(template, target);
@@ -174,8 +219,23 @@ function stepFanoutEnv(): void {
 	}
 }
 
+/**
+ * The identity interview.
+ *
+ * Everything about which questions exist and what they do belongs to
+ * `personalize`; this step owns only how a question looks on a terminal — the
+ * current value offered in brackets, and Enter as the way to take it.
+ */
+async function stepIdentity(line: (question: string) => Promise<string>): Promise<void> {
+	console.log("\n[4/5] Personalize this deployment");
+	console.log("      Enter keeps what is shown. Answered values are not asked about again.\n");
+	const ask: Ask = ({ question, current }) => line(`      ${question}\n      [${current || "—"}] `);
+	const { written, kept } = await personalize(ask, ROOT);
+	console.log(`\n      ✓ ${written.length} written, ${kept.length} left as they were`);
+}
+
 function stepNextSteps(name: string): void {
-	console.log("\n[4/4] Next steps:\n");
+	console.log("\n[5/5] Next steps:\n");
 	for (const step of NEXT_STEPS) console.log(`  ${step}`);
 	console.log(
 		`\n✓ Project "${name}" initialized. Re-run anytime — already-applied steps are skipped.`,
@@ -185,17 +245,23 @@ function stepNextSteps(name: string): void {
 // ── main ─────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
-	const name = await prompt("Project name (kebab-case): ");
-	if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(name)) {
-		console.error("✗ Invalid name. Must be kebab-case (e.g. my-app).");
-		process.exit(1);
-	}
+	const { line, close } = asker();
+	try {
+		const name = await line("Project name (kebab-case): ");
+		if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(name)) {
+			console.error("✗ Invalid name. Must be kebab-case (e.g. my-app).");
+			process.exit(1);
+		}
 
-	console.log(`\n→ Initializing project: ${name}\n`);
-	stepRename(name);
-	stepVerifyWrangler();
-	stepFanoutEnv();
-	stepNextSteps(name);
+		console.log(`\n→ Initializing project: ${name}\n`);
+		stepRename(name);
+		stepVerifyWrangler();
+		stepFanoutEnv();
+		await stepIdentity(line);
+		stepNextSteps(name);
+	} finally {
+		close();
+	}
 }
 
 // Only when run as a command. Importing this file — as the tests do — must not

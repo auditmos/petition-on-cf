@@ -20,6 +20,13 @@ export function MechanismSection({ copy }: { copy: Content["mechanism"] }) {
 				<h2 className="mt-3 max-w-2xl text-3xl sm:text-4xl">{copy.heading}</h2>
 				<p className="mt-6 max-w-2xl text-base leading-relaxed text-quiet">{copy.lede}</p>
 
+				<p className="mt-10 flex flex-col gap-1 border-l-2 border-brand-soft-border pl-4">
+					<span className="text-xs font-medium uppercase tracking-wider text-quiet">
+						{copy.addresseeLabel}
+					</span>
+					<span className="text-lg text-ink sm:text-xl">{copy.addressee}</span>
+				</p>
+
 				<ol className="mt-14 space-y-8">
 					{copy.demands.map((demand, index) => (
 						<li key={demand.title} className="flex gap-5 sm:gap-8">

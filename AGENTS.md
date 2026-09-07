@@ -1,12 +1,12 @@
 # petition-on-cf
 
-Public petition site template on Cloudflare Workers — one deployment = one petition, modeled on 150proc.pl. TanStack Start frontend + Hono API. **In active development**: the code is still the inherited tstack-on-cf base; petition features land as vertical slices tracked in GitHub issues.
+Public petition site template on Cloudflare Workers — one deployment = one petition, modeled on 150proc.pl. TanStack Start frontend + Hono API. **In active development**: eleven of the twelve slices have landed, so the site signs, counts, maps, publishes, reads as a petition rather than as the tstack-on-cf base it started from, and personalizes itself through `init-project`. What remains is the Deploy to Cloudflare pipeline.
 
 ## Before implementing anything
 
 1. **PRD**: [issue #1](https://github.com/auditmos/petition-on-cf/issues/1) — problem, user stories, decisions, assumptions, validation strategy.
 2. **Plan**: `plans/petition-template.md` — durable architectural decisions + 11 phased slices.
-3. **Work items**: issues #2–#13 (labels `AFK`/`HITL`), dependency-ordered via `Blocked by`, each with agent-verifiable acceptance criteria. Implement exactly what the issue scopes — nothing extra.
+3. **Work items**: issue #13 is what is left (label `HITL`), with agent-verifiable acceptance criteria. Implement exactly what the issue scopes — nothing extra. Issues #2–#12 are closed; what was decided while implementing them is recorded per phase in the plan, not in the issues.
 
 Durable decisions every slice must respect (full list in the plan header):
 
@@ -19,7 +19,7 @@ Durable decisions every slice must respect (full list in the plan header):
 
 ## Current state
 
-Issues #2 through #11 have landed: D1 persistence, the legal text capture, a working sign path, the bilingual content module, the trust pipeline, the live counter, the voivodeship map, the full legal layer, the public supporters list, and the full page anatomy.
+Issues #2 through #12 have landed: D1 persistence, the legal text capture, a working sign path, the bilingual content module, the trust pipeline, the live counter, the voivodeship map, the full legal layer, the public supporters list, the full page anatomy, and the `init-project` identity interview.
 
 - **Persistence** — `getDb(binding)` in `src/db/setup.ts` is the only module that imports a driver (`src/db/driver-boundary.test.ts` enforces it). Queries take the `D1Database` binding as a parameter — there is no singleton and no `initDatabase()`. The local loop needs no credentials: `pnpm run db:migrate:dev`. `wrangler.jsonc` ships all-zero placeholder `database_id` values; real ones come from `wrangler d1 create`.
 - **Sign path** — `POST /api/signatures` (validate → dedup → insert) and `GET /api/signatures/snapshot`. One schema, `createSignatureInputSchema` in `src/core/signature-input.ts`, validates in the form and again in the endpoint, taking its messages from the content files. Dedup is the unique index's answer read through `isUniqueViolation`, never a lookup. The full pipeline runs in front of it — validate → Turnstile → per-IP rate limit → voivodeship attribution — and a stored row ends with a fire-and-forget notification to the live counter.
@@ -30,7 +30,9 @@ Issues #2 through #11 have landed: D1 persistence, the legal text capture, a wor
 - **Supporters list** — `readSupporters(binding, cursor?)` in `src/db/signatures/queries.ts` is the whole of it: consent-gated in the `WHERE`, redacted in the `SELECT` (`substr(surname, 1, 1)`, so a surname never leaves D1), ordered `created_at DESC, id DESC` and paged by a keyset cursor rather than an offset, because the table is appended to while a reader has the page open. A page is 24 rows and the client cannot ask for more; one extra row is read to decide whether a next page exists. Published names are built server-side — `Imię N.` for a person, the entity's name and no city for anybody else — so nothing downstream can disagree about them. `GET /api/signatures/supporters` serves it and refuses a cursor it did not issue; `SupportersSection` renders the first page from the loader and fetches the rest when the reader asks. It is the one part of the page deliberately not live.
 - **Signer type** — the form asks *osoba prywatna* or the noun this deployment configured, and the second reveals a required entity name plus an optional role (`COLLECT_SIGNER_ROLE` decides whether the role is asked at all). The noun is declined by the site config, one value per case — `signerOrgNoun`, `signerOrgNounGen`, `signerOrgNounLoc` — because Polish declines it and no single token can. Switching back to a private person clears the entity's details rather than hiding them.
 - **Page anatomy** — the landing page is a petition, not a page about the template. Nine sections in one order, pinned by id in `landing-page.test.tsx`: hero → evidence → demands → counter → form → map → supporters → share → FAQ, then the footer. The hero's call to action is an anchor to `#podpisz` whose click also hands the cursor to the form's first field (`focusSignForm` in `sign-section.tsx`); the navigation may only name ids the landing page actually has, and a test fails if it does not. Its entries are `Link`s to those sections, not buttons: on the landing page the click is intercepted and scrolls in place with the URL untouched, and on the two legal pages — where the sections do not exist — the router follows the href and scrolls to the hash on arrival. Every statistic carries a mandatory `source` and an optional `sourceUrl`, so a figure without a citation cannot be written. Share links are hand-built intent URLs over `canonicalUrl(path, language)` from `head.ts` — no network script is ever loaded — and the copy-link button reports both clipboard outcomes, because a browser refuses the write without a user gesture. `share-links.tsx` is the one implementation of those five affordances; the share section renders it `labelled` and the floating bar renders it `compact` (icons, `sr-only` labels), so the two can never share different URLs. The FAQ is independent Radix collapsibles, so Enter and Space come from the `button` rather than from a key handler. The footer is the organizer's identity, the two legal documents, whichever social profiles `socialLinks(SITE_CONFIG)` finds configured (none ship), and one line crediting the template. The shipped copy is deliberately instructional placeholder — `00 000` beside "Nazwa raportu, instytucja, rok" — so a half-configured deployment reads as a demo rather than as somebody's campaign.
-- Remaining issues (#12–#13) define the build order.
+- **Personalization** — `scripts/personalize.ts` is the identity interview and `init-project` is where it runs; `personalize(ask, root)` is the whole interface, with `ask` injected so tests state answers instead of staging a terminal. Idempotency is a trailing `// placeholder` on every value the interview owns: the marker means "still what the template shipped", writing a real answer removes it, and an unmarked line is never asked about or rewritten — by this script or by the next person. An empty answer keeps what is there, so skipping is safe and re-runs are cheap. The signer noun declines from a table for *firma* and *organizacja* and is asked for its cases otherwise, the role toggle's default follows it, `siteUrl` is derived from the domain, and the Turnstile secret is the one answer that goes to `.dev.vars` instead of the config. `init-project` reads stdin through readline's async iterator rather than `rl.question`, which is what makes a piped run work at all; `INIT_PROJECT_ROOT` lets the tests run the real script against a throwaway project.
+- **Organizer data access** — the two `wrangler d1` export queries in the README are the only way out of the database, and `src/db/signatures/export-queries.test.ts` reads them out of the README to check every identifier against the table and every documented column against what the query returns.
+- Remaining issue (#13) defines the build order. Issue #15 is an open product question rather than a slice: the supporters list is deliberately not live while the counter and map beside it are, and whether that reads as intended is unresolved.
 
 ## Stack
 
@@ -52,6 +54,7 @@ Issues #2 through #11 have landed: D1 persistence, the legal text capture, a wor
 - `src/routes/` — file-based routes (auto-generates `routeTree.gen.ts`)
 - `src/components/` — reusable React components
 - `src/components/ui/` — Shadcn primitives (do not edit manually)
+- `src/content/` — the only place copy lives: per-language files, one Zod schema, the site config, and `src/content/legal/` for the tokenized documents
 - `src/hono/` — Hono API routes and factory
 - `src/db/` — one directory per domain (`table.ts`, `queries.ts`, `index.ts`); `schema.ts` is what drizzle-kit reads
 - `src/core/functions/` — TanStack server functions (server-only reads for route loaders)
@@ -97,7 +100,7 @@ pnpm exec wrangler d1 execute DB --local --command "SELECT count(*) FROM signatu
 
 Prefer **deep modules** (Ousterhout): small interface hiding large implementation. Test at module boundaries, not internals. See `.claude/rules/deep-modules.md`. The template's three deep modules by design: the `LiveCounter` DO, the signature trust pipeline, and the content module.
 
-Technology-specific rules live in `.claude/rules/` with scoped `paths:` frontmatter — they activate automatically when touching relevant files.
+Technology-specific rules live in `.claude/rules/api/`, `.claude/rules/db/` and `.claude/rules/frontend/` with scoped `paths:` frontmatter — they activate automatically when touching relevant files. The rules directly under `.claude/rules/` carry no scope and are always loaded.
 
 ## Verification
 

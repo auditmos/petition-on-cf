@@ -35,6 +35,20 @@ describe.each(LANGUAGES)("MechanismSection in %s", (language) => {
 		expect(screen.getByText(copy.note)).toBeDefined();
 	});
 
+	/**
+	 * Who is being asked. A reader deciding whether to sign is deciding whether
+	 * this is the right body to press, and the demands below only make sense
+	 * once they know who is expected to act on them. The name is the site
+	 * config's — `init-project` asks for it — so the label and the name are two
+	 * content keys rather than one sentence.
+	 */
+	it("names the addressee above the demands", () => {
+		render(<MechanismSection copy={copy} />);
+
+		expect(screen.getByText(copy.addresseeLabel)).toBeDefined();
+		expect(screen.getByText(copy.addressee)).toBeDefined();
+	});
+
 	it("lists every demand the content file states", () => {
 		render(<MechanismSection copy={copy} />);
 

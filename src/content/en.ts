@@ -179,6 +179,8 @@ export const en = {
 		eyebrow: "What we demand",
 		heading: "What we are asking the addressee to do",
 		lede: "A petition works when it asks for something specific. Rather than describing the problem a second time, list the demands here — each one worded so the addressee knows what to do, and the signer knows what they are putting their name to.",
+		addresseeLabel: "Petition addressee",
+		addressee: "{{petitionAddressee}}",
 		demands: [
 			{
 				title: "First demand — the change that matters most",

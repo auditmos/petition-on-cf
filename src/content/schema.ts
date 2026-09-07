@@ -222,6 +222,15 @@ export const contentSchema = z.object({
 	 */
 	mechanism: section.extend({
 		lede: line,
+		/** Names the body being asked to act — "Adresat petycji". */
+		addresseeLabel: line,
+		/**
+		 * The body itself, which is the site config's `{{petitionAddressee}}`
+		 * rather than a sentence. It is a content key so that a campaign can
+		 * write around it — some petitions address two offices at once — without
+		 * the component learning anything about how it is worded.
+		 */
+		addressee: line,
 		demands: z.array(z.object({ title: line, description: line })).min(1),
 		/** What happens to the demands once the collection ends. */
 		note: line,

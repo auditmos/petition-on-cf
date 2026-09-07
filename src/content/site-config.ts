@@ -23,19 +23,25 @@
  */
 export const SITE_CONFIG = {
 	/** Petition name, always rendered inside Polish quotes: „…”. */
-	petitionName: "Nazwa petycji",
+	petitionName: "Nazwa petycji", // placeholder
+	/**
+	 * Who the petition is addressed to — the office, ministry or person being
+	 * asked to act. Named above the demands, in mianownik, so a reader knows
+	 * who is expected to answer before reading what is being asked of them.
+	 */
+	petitionAddressee: "Urząd albo osoba, do której kierujesz petycję", // placeholder
 	/** Administrator's full legal name, in caps as legal documents write it. */
-	organizerLegalName: "NAZWA ORGANIZATORA PETYCJI",
+	organizerLegalName: "NAZWA ORGANIZATORA PETYCJI", // placeholder
 	/** The same entity in title case, for running prose. */
-	organizerName: "Nazwa Organizatora Petycji",
+	organizerName: "Nazwa Organizatora Petycji", // placeholder
 	/** Short name, mianownik — "(„Organizacja”)", "Organizacja zapewnia". */
-	organizerShortName: "Organizacja",
+	organizerShortName: "Organizacja", // placeholder
 	/** Short name, dopełniacz — "interes Organizacji". */
-	organizerShortNameGen: "Organizacji",
+	organizerShortNameGen: "Organizacji", // placeholder
 	/** Short name, biernik — "przez Organizację". */
-	organizerShortNameAcc: "Organizację",
+	organizerShortNameAcc: "Organizację", // placeholder
 	/** Short name, narzędnik — "Z Organizacją". */
-	organizerShortNameIns: "Organizacją",
+	organizerShortNameIns: "Organizacją", // placeholder
 	/**
 	 * The word this deployment uses for a non-personal signer, in the three
 	 * cases the copy declines it into. The deployment picks the noun once
@@ -45,11 +51,11 @@ export const SITE_CONFIG = {
 	 *
 	 * Mianownik — the signer-type toggle: "organizacja".
 	 */
-	signerOrgNoun: "organizacja",
+	signerOrgNoun: "organizacja", // placeholder
 	/** Dopełniacz — the name label and the public-list consent: "nazwa organizacji". */
-	signerOrgNounGen: "organizacji",
+	signerOrgNounGen: "organizacji", // placeholder
 	/** Miejscownik — the role label: "Twoja funkcja w organizacji". */
-	signerOrgNounLoc: "organizacji",
+	signerOrgNounLoc: "organizacji", // placeholder
 	/**
 	 * Turnstile site key — public by design, which is why it lives here rather
 	 * than in the Worker's secrets: the widget script reads it in the browser,
@@ -62,7 +68,7 @@ export const SITE_CONFIG = {
 	 * widget, and push the matching secret, before collecting anything real —
 	 * the README's "Turnstile keys" section is the whole procedure.
 	 */
-	turnstileSiteKey: "1x00000000000000000000AA",
+	turnstileSiteKey: "1x00000000000000000000AA", // placeholder
 	/**
 	 * The organizer's own profiles, linked from the footer.
 	 *
@@ -73,18 +79,18 @@ export const SITE_CONFIG = {
 	 * `init-project` (issue #12) asks for them and skipping the question is an
 	 * answer.
 	 */
-	facebookUrl: "",
-	xUrl: "",
-	linkedinUrl: "",
-	organizerStreet: "ul. Przykładowa 1",
-	organizerCity: "00-001 Miasto",
-	organizerKrs: "0000000000",
-	organizerNip: "0000000000",
-	organizerRegon: "000000000",
-	contactEmail: "kontakt@example.org",
-	domain: "example.org",
+	facebookUrl: "", // placeholder
+	xUrl: "", // placeholder
+	linkedinUrl: "", // placeholder
+	organizerStreet: "ul. Przykładowa 1", // placeholder
+	organizerCity: "00-001 Miasto", // placeholder
+	organizerKrs: "0000000000", // placeholder
+	organizerNip: "0000000000", // placeholder
+	organizerRegon: "000000000", // placeholder
+	contactEmail: "kontakt@example.org", // placeholder
+	domain: "example.org", // placeholder
 	/** Absolute origin, needed by hreflang and Open Graph — both refuse a path. */
-	siteUrl: "https://example.org",
+	siteUrl: "https://example.org", // placeholder
 	/** Route the legal layer serves the RODO clause at, not a PDF path. */
 	rodoClauseUrl: "/klauzula-informacyjna-rodo",
 	privacyPolicyUrl: "/polityka-prywatnosci",
@@ -143,4 +149,4 @@ export function socialLinks(config: {
  * record of strings, interpolated into copy. This is neither a string nor
  * something a sentence can contain.
  */
-export const COLLECT_SIGNER_ROLE = true;
+export const COLLECT_SIGNER_ROLE = true; // placeholder
