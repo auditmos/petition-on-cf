@@ -125,8 +125,16 @@ export const contentSchema = z.object({
 			email: line,
 			city: line,
 			postalCode: line,
+			companyName: line,
+			signerRole: line,
 		}),
-		consentRodo: line,
+		/**
+		 * The signer-type toggle. `organization` names whatever noun this
+		 * deployment chose, which is why it is a token rather than a word.
+		 */
+		signerType: z.object({ label: line, person: line, organization: line }),
+		/** Opens the clause that sits under the submit button, and closes it. */
+		klauzulaToggle: line,
 		submit: line,
 		success: z.object({ heading: line, note: line }),
 		duplicate: line,
@@ -148,6 +156,7 @@ export const contentSchema = z.object({
 			email: line,
 			city: line,
 			postalCode: line,
+			companyName: line,
 			consentRodo: line,
 			/** Shown when the signer submits before the widget has vouched for them. */
 			turnstile: line,
@@ -186,6 +195,8 @@ export const contentSchema = z.object({
 		description: line,
 		documentsHeading: line,
 		documents: z.array(z.object({ key: line, label: line })),
+		/** Heads the second list: this deployment's own legal documents. */
+		legalHeading: line,
 		disclaimer: line,
 		licenseLead: line,
 		licenseLabel: line,
@@ -234,12 +245,22 @@ export const contentSchema = z.object({
 	}),
 
 	/**
-	 * The legal layer's slot. The documents themselves are Polish-only verbatim
-	 * fixtures that render in a later slice; what a language file carries is the
-	 * notice an English reader gets about that.
+	 * The legal layer. The documents themselves are Polish-only Markdown
+	 * fixtures in `src/content/legal/tokenized/` and are not translated — a
+	 * second wording would be a second legal text nobody has approved. What a
+	 * language file carries is everything around them: the notice an English
+	 * reader gets about that, and how each document is announced to a browser
+	 * tab, a search result and a link in the footer.
+	 *
+	 * `documents` is keyed by the names in `src/content/legal`;
+	 * `src/content/legal/index.test.ts` is what keeps the two in step.
 	 */
 	legal: z.object({
 		polishOnlyNotice: line,
+		documents: z.object({
+			rodoClause: z.object({ title: line, description: line }),
+			privacyPolicy: z.object({ title: line, description: line }),
+		}),
 	}),
 });
 

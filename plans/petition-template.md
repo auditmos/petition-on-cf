@@ -381,6 +381,20 @@ What the capture changes about this phase's description above:
 
 Also observed, for phases other than this one: the live form requires a postal code (**resolved:** this template collects one too but always optional, and prefers it over geo-IP — see the durable decisions and Phase 4), the share row's fifth action copies a full prepared message rather than a link (Phase 9, PRD story 16 says "copy-link"), and the FAQ is a single-open accordion of eight items (Phase 9).
 
+### Landed — 2026-09-07 (issue #9)
+
+**Status: the phase is complete.** All four open decisions from the capture are settled and implemented; the acceptance criteria are covered by tests in `signature-form.test.tsx`, `legal-page.test.tsx`, `legal-text.test.tsx`, `legal-text.worker.test.tsx`, `content.test.ts`, `src/content/legal/index.test.ts` and `signatures.worker.test.ts`.
+
+- **`src/content/legal/` is now the legal module**, exposing `getLegalText(name)` over all seven fixtures, plus `LEGAL_DOCUMENT_NAMES` and `legalDocumentPath` for the two that are also pages. Callers never see a file, an import or a token.
+- **Markdown renders without a dependency.** `LegalText` parses the small dialect the fixtures use — headings, paragraphs, `-` lists, `[text](url)` — straight to React elements, so no HTML string exists anywhere in the path and there is nothing to sanitise. `LegalSentence` is the same dialect with no block wrapper, for a consent that has to sit inside the element naming its checkbox. Internal hrefs are re-prefixed to the reader's language; `mailto:` and absolute URLs are left alone.
+- **Four routes, one page.** `/klauzula-informacyjna-rodo` and `/polityka-prywatnosci` and their `/en` twins are three-line files delegating to `LegalPage`; `src/content/legal/index.test.ts` fails if a document's configured path has no route file, so a consent link cannot 404 quietly. `buildHead` gained an optional page override, so each document titles its own tab.
+- **The privacy policy was authored here**, not captured — see the reasoning already recorded above. It describes only what this template does: the fields the form collects, the IP spent on the bot check and never stored, the region derived from postal code or geo-IP, the theme preference in the browser, no analytics, no cookies for tracking, and no e-mail ever sent. Every organizer still has to have it reviewed; the footer disclaimer says so on every page.
+- **The consents are the approved Polish wording in both languages**, with `content.legal.polishOnlyNotice` above them on the English form and at the top of each English legal page. A translated consent would be a second legal wording nobody approved. The old placeholder `sign.consentRodo` copy key is gone.
+- **The signer noun lives in the site config in three cases** — `signerOrgNoun` (mianownik), `signerOrgNounGen` (dopełniacz), `signerOrgNounLoc` (miejscownik) — settling the contradiction between the durable decision and `site-config.ts`'s own comment in favour of the decision. `content.test.ts` runs the raw Polish copy through *organizacja* and *firma* and fails if the nominative leaks into a declined slot. English copy writes English words: the noun is a Polish declension problem.
+- **`COLLECT_SIGNER_ROLE` is a separate export**, not a `SITE_CONFIG` key, because that object is a record of strings interpolated into copy and this is neither. `SignatureForm` takes it as a defaulted prop so both settings are exercised without standing in for a module this code owns.
+- **`signer_role` is an additive nullable column** (`0002_strange_felicia_hardy.sql`), as this phase's description said it would be.
+- **Not done, and deliberately:** the endpoint does not refuse a `signerRole` sent by a deployment that does not collect it. The field is nullable free text with no effect on anything, and enforcing it would mean `core/` reading the content config — a layering cost out of proportion to a value nobody can act on.
+
 ---
 
 ## Phase 8: Supporters list

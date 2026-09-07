@@ -41,6 +41,15 @@ export const signatures = sqliteTable("signatures", {
 		.notNull()
 		.default("person"),
 	companyName: text("company_name"),
+	/**
+	 * The signer's role in that entity — "prezeska", "członek zarządu".
+	 *
+	 * Nullable and always present, whether or not a deployment asks for it.
+	 * Collecting it is a configuration choice (`COLLECT_SIGNER_ROLE`), and
+	 * making the column depend on that choice would have turned a checkbox in
+	 * `init-project` into a migration.
+	 */
+	signerRole: text("signer_role"),
 	/** ISO 3166-2:PL subdivision code, from `request.cf` — null when unknown. */
 	voivodeshipCode: text("voivodeship_code"),
 	/** Mandatory at the boundary; stored so the record shows what was agreed. */

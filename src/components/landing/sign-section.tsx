@@ -7,7 +7,15 @@ import type { Content, Language } from "@/content";
  * The section is the copy and the layout; the form is the behaviour. Keeping
  * them apart is what lets one be translated without the other being touched.
  */
-export function SignSection({ copy, language }: { copy: Content["sign"]; language: Language }) {
+export function SignSection({
+	copy,
+	legal,
+	language,
+}: {
+	copy: Content["sign"];
+	legal: Content["legal"];
+	language: Language;
+}) {
 	return (
 		<section id="podpisz" className="border-t border-divider bg-paper py-20 sm:py-24">
 			<div className="mx-auto grid max-w-6xl gap-12 px-6 lg:grid-cols-2 lg:px-8">
@@ -19,7 +27,7 @@ export function SignSection({ copy, language }: { copy: Content["sign"]; languag
 				</div>
 
 				<div className="lg:max-w-md">
-					<SignatureForm copy={copy} language={language} />
+					<SignatureForm copy={copy} legal={legal} language={language} />
 				</div>
 			</div>
 		</section>

@@ -96,9 +96,15 @@ export const pl = {
 			email: "Adres e-mail",
 			city: "Miejscowość",
 			postalCode: "Kod pocztowy (nieobowiązkowy)",
+			companyName: "Nazwa {{signerOrgNounGen}}",
+			signerRole: "Twoja funkcja w {{signerOrgNounLoc}} (nieobowiązkowa)",
 		},
-		consentRodo:
-			"Zapoznałam/zapoznałem się z klauzulą informacyjną o przetwarzaniu danych osobowych. Wersja obowiązująca dla tej petycji pojawi się tutaj razem z warstwą prawną.",
+		signerType: {
+			label: "Podpisuję jako",
+			person: "osoba prywatna",
+			organization: "{{signerOrgNoun}}",
+		},
+		klauzulaToggle: "Klauzula informacyjna",
 		submit: "Podpisz petycję",
 		success: {
 			heading: "Dziękujemy — Twój podpis został zapisany.",
@@ -116,6 +122,7 @@ export const pl = {
 			email: "Podaj poprawny adres e-mail.",
 			city: "Podaj miejscowość.",
 			postalCode: "Kod pocztowy ma format 00-000.",
+			companyName: "Podaj nazwę {{signerOrgNounGen}}.",
 			consentRodo: "Bez tej zgody nie możemy zapisać podpisu.",
 			turnstile: "Poczekaj, aż zakończy się weryfikacja zabezpieczająca przed botami.",
 			tooLong: "To pole może mieć najwyżej 100 znaków.",
@@ -286,6 +293,7 @@ export const pl = {
 			{ key: "plan", label: "Plan wdrożenia w fazach" },
 			{ key: "issues", label: "Zadania i postęp prac" },
 		],
+		legalHeading: "Dokumenty prawne",
 		disclaimer:
 			"Odpowiedzialność za zgodność treści prawnych konkretnej kampanii spoczywa na jej organizatorze.",
 		licenseLead: "Licencja",
@@ -328,5 +336,17 @@ export const pl = {
 	legal: {
 		polishOnlyNotice:
 			"Dokumenty prawne tej petycji obowiązują w wersji polskiej i tylko ona jest wiążąca.",
+		documents: {
+			rodoClause: {
+				title: "Klauzula informacyjna RODO",
+				description:
+					"Jak przetwarzamy dane osób podpisujących petycję „{{petitionName}}” — administrator, cele, podstawy prawne, okres przechowywania i Twoje prawa.",
+			},
+			privacyPolicy: {
+				title: "Polityka prywatności",
+				description:
+					"Co serwis {{domain}} zbiera, czego nie zbiera, komu powierza dane i jak długo je przechowuje.",
+			},
+		},
 	},
 } as const;

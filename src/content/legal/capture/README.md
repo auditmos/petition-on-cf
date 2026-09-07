@@ -4,8 +4,8 @@ Provenance for the fixtures in `../tokenized/`, per
 [issue #3](https://github.com/auditmos/petition-on-cf/issues/3). Captured
 **2026-09-06** from the reference site, <https://150proc.pl/>.
 
-Nothing here is wired into the application. Issue #9 (full legal layer) is what
-consumes it.
+The legal layer built in issue #9 consumes these fixtures through
+`../index.ts`.
 
 ## What this repository stores, and what it deliberately does not
 
@@ -37,6 +37,9 @@ does not require storing it.
 | `inline-klauzula-informacyjna.md` | live DOM, expanded inline clause |
 | `klauzula-rodo-podpisanie-petycji.md` | §1 of the linked RODO clause PDF |
 
+`polityka-prywatnosci.md` sits beside these in `../tokenized/` but was **not**
+captured — issue #9 authored it. See "What was dropped" below.
+
 Form field set, share channels and the FAQ pattern are in `structure-notes.md`.
 
 ## What was dropped, and why
@@ -45,7 +48,10 @@ Form field set, share channels and the FAQ pattern are in `structure-notes.md`.
   operation runs through §1, §3.2, §3.3, §3.6, §4.2–§4.5, §4.7, §5, §6, §7, §9
   and §12. Excising it cleanly would mean rewriting a legal document paragraph
   by paragraph, which needs legal review, not a capture pass. This template
-  needs its own privacy policy authored in #9 anyway.
+  needs its own privacy policy authored in #9 anyway. *(Done: issue #9 wrote
+  `../tokenized/polityka-prywatnosci.md` from scratch, against what the code
+  actually does. It is the one fixture here that is authored rather than
+  captured, and it is not covered by the HITL gate below.)*
 - **RODO clause §2 and §3**, covering the "Zgłoś scam" form and personal data
   obtained from third-party sources. Same reason; §1 is the petition-signing
   clause and generalizes cleanly.

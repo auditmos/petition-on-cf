@@ -19,12 +19,25 @@ function absolute(path: string, language: Language): string {
 	return `${SITE_CONFIG.siteUrl}${toLanguagePath(path, language)}`;
 }
 
+/** What a page says about itself, when it is not the site's own front page. */
+type PageMeta = { title: string; description: string };
+
 /**
- * `path` is the page without a language prefix — `/`, `/podpisz` — so a route
- * passes the same value whichever language it serves.
+ * `path` is the page without a language prefix — `/`, `/polityka-prywatnosci`
+ * — so a route passes the same value whichever language it serves.
+ *
+ * `page` names a page that is not the landing page. Without it the site's own
+ * title and description are used, which is right for exactly one page and
+ * wrong for every legal document: a reader who opened the privacy policy from
+ * a consent checkbox should see which document they opened, in the tab and in
+ * a search result.
  */
-export function buildHead(language: Language, path: string): { meta: MetaTag[]; links: LinkTag[] } {
-	const { meta } = getContent(language);
+export function buildHead(
+	language: Language,
+	path: string,
+	page?: PageMeta,
+): { meta: MetaTag[]; links: LinkTag[] } {
+	const meta = { ...getContent(language).meta, ...page };
 	const url = absolute(path, language);
 
 	return {

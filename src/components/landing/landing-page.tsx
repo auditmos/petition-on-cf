@@ -53,7 +53,7 @@ export function LandingPage({
 			<main>
 				<HeroSection copy={content.hero} />
 				<CounterSection count={live.total} language={language} copy={content.counter} />
-				<SignSection copy={content.sign} language={language} />
+				<SignSection copy={content.sign} legal={content.legal} language={language} />
 				<MapSection
 					counts={live}
 					language={language}
@@ -64,7 +64,7 @@ export function LandingPage({
 				<FeaturesSection copy={content.features} />
 				<HowItWorksSection copy={content.howItWorks} />
 			</main>
-			<Footer copy={content.footer} />
+			<Footer copy={content.footer} legal={content.legal} language={language} />
 			<FloatingBar
 				count={live.total}
 				language={language}

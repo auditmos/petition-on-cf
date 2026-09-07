@@ -10,11 +10,26 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as KlauzulaInformacyjnaRodoRouteImport } from './routes/klauzula-informacyjna-rodo'
+import { Route as PolitykaPrywatnosciRouteImport } from './routes/polityka-prywatnosci'
 import { Route as EnIndexRouteImport } from './routes/en/index'
+import { Route as EnKlauzulaInformacyjnaRodoRouteImport } from './routes/en/klauzula-informacyjna-rodo'
+import { Route as EnPolitykaPrywatnosciRouteImport } from './routes/en/polityka-prywatnosci'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KlauzulaInformacyjnaRodoRoute =
+  KlauzulaInformacyjnaRodoRouteImport.update({
+    id: '/klauzula-informacyjna-rodo',
+    path: '/klauzula-informacyjna-rodo',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const PolitykaPrywatnosciRoute = PolitykaPrywatnosciRouteImport.update({
+  id: '/polityka-prywatnosci',
+  path: '/polityka-prywatnosci',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EnIndexRoute = EnIndexRouteImport.update({
@@ -22,30 +37,76 @@ const EnIndexRoute = EnIndexRouteImport.update({
   path: '/en/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EnKlauzulaInformacyjnaRodoRoute =
+  EnKlauzulaInformacyjnaRodoRouteImport.update({
+    id: '/en/klauzula-informacyjna-rodo',
+    path: '/en/klauzula-informacyjna-rodo',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const EnPolitykaPrywatnosciRoute = EnPolitykaPrywatnosciRouteImport.update({
+  id: '/en/polityka-prywatnosci',
+  path: '/en/polityka-prywatnosci',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/klauzula-informacyjna-rodo': typeof KlauzulaInformacyjnaRodoRoute
+  '/polityka-prywatnosci': typeof PolitykaPrywatnosciRoute
+  '/en/klauzula-informacyjna-rodo': typeof EnKlauzulaInformacyjnaRodoRoute
+  '/en/polityka-prywatnosci': typeof EnPolitykaPrywatnosciRoute
   '/en/': typeof EnIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/klauzula-informacyjna-rodo': typeof KlauzulaInformacyjnaRodoRoute
+  '/polityka-prywatnosci': typeof PolitykaPrywatnosciRoute
+  '/en/klauzula-informacyjna-rodo': typeof EnKlauzulaInformacyjnaRodoRoute
+  '/en/polityka-prywatnosci': typeof EnPolitykaPrywatnosciRoute
   '/en': typeof EnIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/klauzula-informacyjna-rodo': typeof KlauzulaInformacyjnaRodoRoute
+  '/polityka-prywatnosci': typeof PolitykaPrywatnosciRoute
+  '/en/klauzula-informacyjna-rodo': typeof EnKlauzulaInformacyjnaRodoRoute
+  '/en/polityka-prywatnosci': typeof EnPolitykaPrywatnosciRoute
   '/en/': typeof EnIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/en/'
+  fullPaths:
+    | '/'
+    | '/klauzula-informacyjna-rodo'
+    | '/polityka-prywatnosci'
+    | '/en/klauzula-informacyjna-rodo'
+    | '/en/polityka-prywatnosci'
+    | '/en/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/en'
-  id: '__root__' | '/' | '/en/'
+  to:
+    | '/'
+    | '/klauzula-informacyjna-rodo'
+    | '/polityka-prywatnosci'
+    | '/en/klauzula-informacyjna-rodo'
+    | '/en/polityka-prywatnosci'
+    | '/en'
+  id:
+    | '__root__'
+    | '/'
+    | '/klauzula-informacyjna-rodo'
+    | '/polityka-prywatnosci'
+    | '/en/klauzula-informacyjna-rodo'
+    | '/en/polityka-prywatnosci'
+    | '/en/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  KlauzulaInformacyjnaRodoRoute: typeof KlauzulaInformacyjnaRodoRoute
+  PolitykaPrywatnosciRoute: typeof PolitykaPrywatnosciRoute
+  EnKlauzulaInformacyjnaRodoRoute: typeof EnKlauzulaInformacyjnaRodoRoute
+  EnPolitykaPrywatnosciRoute: typeof EnPolitykaPrywatnosciRoute
   EnIndexRoute: typeof EnIndexRoute
 }
 
@@ -58,6 +119,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/klauzula-informacyjna-rodo': {
+      id: '/klauzula-informacyjna-rodo'
+      path: '/klauzula-informacyjna-rodo'
+      fullPath: '/klauzula-informacyjna-rodo'
+      preLoaderRoute: typeof KlauzulaInformacyjnaRodoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/polityka-prywatnosci': {
+      id: '/polityka-prywatnosci'
+      path: '/polityka-prywatnosci'
+      fullPath: '/polityka-prywatnosci'
+      preLoaderRoute: typeof PolitykaPrywatnosciRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/en/': {
       id: '/en/'
       path: '/en'
@@ -65,11 +140,29 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EnIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/en/klauzula-informacyjna-rodo': {
+      id: '/en/klauzula-informacyjna-rodo'
+      path: '/en/klauzula-informacyjna-rodo'
+      fullPath: '/en/klauzula-informacyjna-rodo'
+      preLoaderRoute: typeof EnKlauzulaInformacyjnaRodoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/en/polityka-prywatnosci': {
+      id: '/en/polityka-prywatnosci'
+      path: '/en/polityka-prywatnosci'
+      fullPath: '/en/polityka-prywatnosci'
+      preLoaderRoute: typeof EnPolitykaPrywatnosciRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  KlauzulaInformacyjnaRodoRoute: KlauzulaInformacyjnaRodoRoute,
+  PolitykaPrywatnosciRoute: PolitykaPrywatnosciRoute,
+  EnKlauzulaInformacyjnaRodoRoute: EnKlauzulaInformacyjnaRodoRoute,
+  EnPolitykaPrywatnosciRoute: EnPolitykaPrywatnosciRoute,
   EnIndexRoute: EnIndexRoute,
 }
 export const routeTree = rootRouteImport

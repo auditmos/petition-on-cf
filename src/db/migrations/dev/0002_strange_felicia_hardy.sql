@@ -1,0 +1,1 @@
+ALTER TABLE `signatures` ADD `signer_role` text;

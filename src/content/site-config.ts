@@ -37,13 +37,19 @@ export const SITE_CONFIG = {
 	/** Short name, narzędnik — "Z Organizacją". */
 	organizerShortNameIns: "Organizacją",
 	/**
-	 * The word this deployment uses for a non-personal signer, dopełniacz —
-	 * "nazwy organizacji" / "nazwy firmy". The deployment picks the noun
-	 * (issue #12); the nominative and miejscownik forms the signer-type toggle
-	 * and the two organisation field labels need live with the rest of the UI
-	 * copy in the content files, not here.
+	 * The word this deployment uses for a non-personal signer, in the three
+	 * cases the copy declines it into. The deployment picks the noun once
+	 * (issue #12) and every sentence that mentions it reads from here — a
+	 * campaign signing companies writes "firma" and gets "nazwa firmy" and
+	 * "funkcja w firmie" without editing a single sentence.
+	 *
+	 * Mianownik — the signer-type toggle: "organizacja".
 	 */
+	signerOrgNoun: "organizacja",
+	/** Dopełniacz — the name label and the public-list consent: "nazwa organizacji". */
 	signerOrgNounGen: "organizacji",
+	/** Miejscownik — the role label: "Twoja funkcja w organizacji". */
+	signerOrgNounLoc: "organizacji",
 	/**
 	 * Turnstile site key — public by design, which is why it lives here rather
 	 * than in the Worker's secrets: the widget script reads it in the browser,
@@ -82,3 +88,20 @@ export const SITE_CONFIG = {
 } as const;
 
 export type SiteToken = keyof typeof SITE_CONFIG;
+
+/**
+ * Whether this deployment asks a non-personal signer for their role in it.
+ *
+ * "Twoja funkcja w organizacji" is worth asking when an association or an NGO
+ * endorses and it matters who signed on its behalf; it is noise when a company
+ * signs under its own name. So it is the deployment's choice, and the default
+ * follows the noun above — collected for *organizacja*, not for *firma*.
+ * `init-project` (issue #12) sets it. When shown it is never required, and the
+ * column behind it is nullable whichever way this goes, so changing it is never
+ * a migration.
+ *
+ * It lives beside `SITE_CONFIG` rather than in it because that object is a
+ * record of strings, interpolated into copy. This is neither a string nor
+ * something a sentence can contain.
+ */
+export const COLLECT_SIGNER_ROLE = true;

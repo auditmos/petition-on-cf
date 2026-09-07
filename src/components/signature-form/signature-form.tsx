@@ -1,14 +1,20 @@
 import { useForm } from "@tanstack/react-form";
 import { useMutation } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { LegalSentence } from "@/components/legal/legal-text";
+import { TextField } from "@/components/signature-form/text-field";
 import { TurnstileWidget } from "@/components/signature-form/turnstile-widget";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { Content, Language } from "@/content";
+import { getLegalText, type LegalTextName } from "@/content/legal";
+import { COLLECT_SIGNER_ROLE } from "@/content/site-config";
 import {
 	createSignatureInputSchema,
+	SIGNER_TYPES,
 	type SignatureDraft,
 	type SignatureInput,
+	type SignerType,
 } from "@/core/signature-input";
 
 /**
@@ -45,6 +51,45 @@ const FIELDS = [
 	{ name: "postalCode", autoComplete: "postal-code" },
 ] as const;
 
+/**
+ * The organisation's own fields, prepended when the signer represents one.
+ *
+ * The role is only asked where the deployment says so (`COLLECT_SIGNER_ROLE`);
+ * the name is always asked, and is the one thing an organisation cannot sign
+ * without. Both labels decline the configured noun, which is why they are
+ * tokens in the content files rather than words.
+ */
+const ORGANIZATION_FIELDS = [
+	{ name: "companyName", autoComplete: "organization" },
+	{ name: "signerRole", autoComplete: "organization-title" },
+] as const;
+
+/**
+ * The three consent boxes, in the order they are asked.
+ *
+ * Each names the fixture whose wording it carries, because that wording is a
+ * legal text rather than copy: it is the same approved Polish sentence in both
+ * languages, and no component is allowed to paraphrase it. Only the RODO
+ * acknowledgment is mandatory — the schema is what refuses it, and what
+ * supplies the sentence explaining why.
+ *
+ * The public-list consent is written twice, once for each kind of signer. That
+ * is a second approved text rather than a variant of the first, so it is
+ * selected by signer type rather than assembled from one.
+ */
+const CONSENTS = [
+	{ name: "consentRodo", text: () => "consentRodoAcknowledgment" as const },
+	{
+		name: "consentPublicList",
+		text: (signerType: SignerType) =>
+			signerType === "company" ? "consentPublicListOrganization" : "consentPublicListPerson",
+	},
+	{ name: "consentUpdates", text: () => "consentUpdates" as const },
+] as const satisfies readonly {
+	name: keyof SignatureDraft;
+	text: (signerType: SignerType) => LegalTextName;
+}[];
+
 const EMPTY: SignatureDraft = {
 	firstName: "",
 	surname: "",
@@ -52,9 +97,30 @@ const EMPTY: SignatureDraft = {
 	city: "",
 	postalCode: "",
 	consentRodo: false,
+	consentPublicList: false,
+	consentUpdates: false,
+	signerType: "person",
+	companyName: "",
+	signerRole: "",
 };
 
-export function SignatureForm({ copy, language }: { copy: SignCopy; language: Language }) {
+export function SignatureForm({
+	copy,
+	legal,
+	language,
+	/**
+	 * Whether to ask a non-personal signer for their role, defaulting to what
+	 * this deployment configured. It is a parameter rather than a direct read
+	 * so both settings can be exercised without standing in for a module this
+	 * code owns; no caller passes it.
+	 */
+	collectSignerRole = COLLECT_SIGNER_ROLE,
+}: {
+	copy: SignCopy;
+	legal: Content["legal"];
+	language: Language;
+	collectSignerRole?: boolean;
+}) {
 	const mutation = useMutation({ mutationFn: postSignature });
 	// One schema per set of messages, not one per keystroke.
 	const schema = useMemo(() => createSignatureInputSchema(copy.errors), [copy.errors]);
@@ -115,66 +181,149 @@ export function SignatureForm({ copy, language }: { copy: SignCopy; language: La
 			}}
 			className="space-y-6"
 		>
+			<form.Field name="signerType">
+				{(controller) => (
+					<fieldset>
+						<legend className="block text-sm font-medium text-ink">{copy.signerType.label}</legend>
+						<div className="mt-2 flex flex-wrap gap-4">
+							{SIGNER_TYPES.map((type) => (
+								<label
+									key={type}
+									htmlFor={`signerType-${type}`}
+									className="flex items-center gap-2 text-sm text-quiet"
+								>
+									<input
+										id={`signerType-${type}`}
+										name={controller.name}
+										type="radio"
+										value={type}
+										checked={controller.state.value === type}
+										// Switching back is a retraction, not a hidden draft: the
+										// organisation's details stop being sent the moment the
+										// signer says they are signing personally.
+										onChange={() => {
+											controller.handleChange(type);
+											if (type === "person") {
+												form.setFieldValue("companyName", "");
+												form.setFieldValue("signerRole", "");
+											}
+										}}
+										className="h-4 w-4"
+									/>
+									{type === "person" ? copy.signerType.person : copy.signerType.organization}
+								</label>
+							))}
+						</div>
+					</fieldset>
+				)}
+			</form.Field>
+
+			<form.Subscribe selector={(state) => state.values.signerType}>
+				{(signerType) =>
+					signerType !== "company" ? null : (
+						<div className="space-y-6">
+							{ORGANIZATION_FIELDS.filter(
+								(field) => field.name !== "signerRole" || collectSignerRole,
+							).map((field) => (
+								<form.Field key={field.name} name={field.name}>
+									{(controller) => (
+										<TextField
+											name={field.name}
+											label={copy.fields[field.name]}
+											autoComplete={field.autoComplete}
+											value={controller.state.value ?? ""}
+											error={firstMessage(controller.state.meta.errors)}
+											onBlur={controller.handleBlur}
+											onChange={controller.handleChange}
+										/>
+									)}
+								</form.Field>
+							))}
+						</div>
+					)
+				}
+			</form.Subscribe>
+
 			{FIELDS.map((field) => (
 				<form.Field key={field.name} name={field.name}>
-					{(controller) => {
-						const error = firstMessage(controller.state.meta.errors);
-						return (
-							<div>
-								<label htmlFor={field.name} className="block text-sm font-medium text-ink">
-									{copy.fields[field.name]}
-								</label>
-								<Input
-									id={field.name}
-									name={controller.name}
-									type={field.name === "email" ? "email" : "text"}
-									autoComplete={field.autoComplete}
-									value={controller.state.value ?? ""}
-									aria-invalid={error ? true : undefined}
-									aria-describedby={error ? `${field.name}-error` : undefined}
-									onBlur={controller.handleBlur}
-									onChange={(event) => controller.handleChange(event.target.value)}
-									className="mt-2"
-								/>
-								{error ? (
-									<p id={`${field.name}-error`} role="alert" className="mt-2 text-sm text-negative">
-										{error}
-									</p>
-								) : null}
-							</div>
-						);
-					}}
+					{(controller) => (
+						<TextField
+							name={field.name}
+							label={copy.fields[field.name]}
+							autoComplete={field.autoComplete}
+							type={field.name === "email" ? "email" : "text"}
+							value={controller.state.value ?? ""}
+							error={firstMessage(controller.state.meta.errors)}
+							onBlur={controller.handleBlur}
+							onChange={controller.handleChange}
+						/>
+					)}
 				</form.Field>
 			))}
 
-			<form.Field name="consentRodo">
-				{(controller) => {
-					const error = firstMessage(controller.state.meta.errors);
-					return (
-						<div>
-							<label htmlFor="consentRodo" className="flex items-start gap-3 text-sm text-quiet">
-								<input
-									id="consentRodo"
-									name={controller.name}
-									type="checkbox"
-									checked={controller.state.value}
-									aria-invalid={error ? true : undefined}
-									aria-describedby={error ? "consentRodo-error" : undefined}
-									onBlur={controller.handleBlur}
-									onChange={(event) => controller.handleChange(event.target.checked)}
-									className="mt-1 h-4 w-4 shrink-0"
-								/>
-								<span>{copy.consentRodo}</span>
-							</label>
-							{error ? (
-								<p id="consentRodo-error" role="alert" className="mt-2 text-sm text-negative">
-									{error}
-								</p>
-							) : null}
-						</div>
-					);
-				}}
-			</form.Field>
+			<div className="space-y-4">
+				{/* The documents are Polish in every language, so the consents are
+				    too. An English reader is told that rather than left to wonder. */}
+				{language === "pl" ? null : (
+					<p className="rounded-lg border border-divider bg-ground p-3 text-sm leading-relaxed text-quiet">
+						{legal.polishOnlyNotice}
+					</p>
+				)}
+
+				{/* Subscribed rather than read off `form.state`: the public-list
+				    consent has a second approved wording for organisations, and a
+				    field only re-renders for its own value. */}
+				<form.Subscribe selector={(state) => state.values.signerType ?? "person"}>
+					{(signerType) =>
+						CONSENTS.map((consent) => (
+							<form.Field key={consent.name} name={consent.name}>
+								{(controller) => {
+									const error = firstMessage(controller.state.meta.errors);
+									const wording = getLegalText(consent.text(signerType));
+									return (
+										<div>
+											<div className="flex items-start gap-3">
+												<input
+													id={consent.name}
+													name={controller.name}
+													type="checkbox"
+													checked={controller.state.value === true}
+													// The wording carries links, so it cannot be a `<label>`:
+													// clicking one inside a label would follow the link and
+													// toggle the box at the same time. Naming the box from
+													// the text keeps both behaviours intact.
+													aria-labelledby={`${consent.name}-text`}
+													aria-invalid={error ? true : undefined}
+													aria-describedby={error ? `${consent.name}-error` : undefined}
+													onBlur={controller.handleBlur}
+													onChange={(event) => controller.handleChange(event.target.checked)}
+													className="mt-1 h-4 w-4 shrink-0"
+												/>
+												<span
+													id={`${consent.name}-text`}
+													lang="pl"
+													className="text-sm leading-relaxed text-quiet"
+												>
+													<LegalSentence markdown={wording} language={language} />
+												</span>
+											</div>
+											{error ? (
+												<p
+													id={`${consent.name}-error`}
+													role="alert"
+													className="mt-2 text-sm text-negative"
+												>
+													{error}
+												</p>
+											) : null}
+										</div>
+									);
+								}}
+							</form.Field>
+						))
+					}
+				</form.Subscribe>
+			</div>
 
 			<div>
 				<TurnstileWidget
@@ -222,6 +371,24 @@ export function SignatureForm({ copy, language }: { copy: SignCopy; language: La
 					</Button>
 				)}
 			</form.Subscribe>
+
+			{/* Below the button, and expanding in place rather than over the page:
+			    a signer reading it has not left the form, and a dialog would take
+			    the focus of somebody who only wanted to check who the
+			    administrator is. */}
+			<Collapsible>
+				<CollapsibleTrigger className="text-sm text-quiet underline underline-offset-2 transition-colors hover:text-brand-dark">
+					{copy.klauzulaToggle}
+				</CollapsibleTrigger>
+				<CollapsibleContent>
+					<p
+						lang="pl"
+						className="mt-3 rounded-lg border border-divider bg-ground p-4 text-sm leading-relaxed text-quiet"
+					>
+						<LegalSentence markdown={getLegalText("inlineKlauzula")} language={language} />
+					</p>
+				</CollapsibleContent>
+			</Collapsible>
 		</form>
 	);
 }

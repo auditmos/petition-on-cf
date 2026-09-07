@@ -97,9 +97,15 @@ export const en = {
 			email: "E-mail address",
 			city: "Town or city",
 			postalCode: "Postal code (optional)",
+			companyName: "Organisation name",
+			signerRole: "Your role in the organisation (optional)",
 		},
-		consentRodo:
-			"I have read the information notice on the processing of personal data. The version that applies to this petition will appear here together with the legal layer.",
+		signerType: {
+			label: "Signing as",
+			person: "a private person",
+			organization: "an organisation",
+		},
+		klauzulaToggle: "Information notice",
 		submit: "Sign the petition",
 		success: {
 			heading: "Thank you — your signature has been recorded.",
@@ -119,6 +125,7 @@ export const en = {
 			email: "Enter a valid e-mail address.",
 			city: "Enter your town or city.",
 			postalCode: "A postal code looks like 00-000.",
+			companyName: "Enter the organisation's name.",
 			consentRodo: "Without this consent we cannot record your signature.",
 			turnstile: "Please wait for the anti-bot check to finish.",
 			tooLong: "This field can hold at most 100 characters.",
@@ -289,6 +296,7 @@ export const en = {
 			{ key: "plan", label: "Phased implementation plan" },
 			{ key: "issues", label: "Work items and progress" },
 		],
+		legalHeading: "Legal documents",
 		disclaimer:
 			"Responsibility for the legal texts of any given campaign rests with its organizer.",
 		licenseLead: "Licence",
@@ -331,5 +339,17 @@ export const en = {
 	legal: {
 		polishOnlyNotice:
 			"The legal documents for this petition are binding in their Polish version, and only that version is binding.",
+		documents: {
+			rodoClause: {
+				title: "GDPR information notice (in Polish)",
+				description:
+					"How the data of people signing the “{{petitionName}}” petition is processed — controller, purposes, legal bases, retention and your rights. The document itself is in Polish.",
+			},
+			privacyPolicy: {
+				title: "Privacy policy (in Polish)",
+				description:
+					"What {{domain}} collects, what it does not, who processes the data and how long it is kept. The document itself is in Polish.",
+			},
+		},
 	},
 } as const;

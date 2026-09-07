@@ -38,6 +38,11 @@ describe("signatureInputSchema", () => {
 			city: "Warszawa",
 			postalCode: "00-950",
 			consentRodo: true,
+			consentPublicList: false,
+			consentUpdates: false,
+			signerType: "person",
+			companyName: null,
+			signerRole: null,
 		});
 	});
 

@@ -1,5 +1,7 @@
 import { contentSchema, getContent, LANGUAGES } from "./index";
+import { pl } from "./pl";
 import { SITE_CONFIG } from "./site-config";
+import { interpolate } from "./tokens";
 
 /**
  * The content module's contract, stated once for both languages.
@@ -75,5 +77,55 @@ describe("content files", () => {
 			.join("\n");
 
 		expect(rendered).toContain(SITE_CONFIG.petitionName);
+	});
+});
+
+/**
+ * Polish declines the noun a deployment picks for a non-personal signer, and
+ * the copy has to decline it too.
+ *
+ * The failure this guards against is quiet: a content file that writes the
+ * nominative into every slot reads correctly for *organizacja* — "nazwa
+ * organizacja" is obviously wrong, but only to a Polish reader looking at a
+ * deployment nobody has proofread. So the check is to run the raw copy through
+ * two different nouns and assert each slot took the case it needs.
+ *
+ * The raw Polish file is read rather than `getContent`, because the whole point
+ * is to substitute a config this deployment does not have.
+ */
+describe("the signer noun the deployment configures", () => {
+	const NOUNS = [
+		{ noun: "organizacja", gen: "organizacji", loc: "organizacji" },
+		{ noun: "firma", gen: "firmy", loc: "firmie" },
+	] as const;
+
+	it.each(NOUNS)("declines $noun into every slot that needs a case", ({ noun, gen, loc }) => {
+		const values = {
+			...SITE_CONFIG,
+			signerOrgNoun: noun,
+			signerOrgNounGen: gen,
+			signerOrgNounLoc: loc,
+		};
+		const say = (text: string) => interpolate(text, values);
+		const { sign } = pl;
+
+		expect(say(sign.signerType.organization)).toBe(noun);
+		expect(say(sign.fields.companyName)).toContain(gen);
+		expect(say(sign.fields.signerRole)).toContain(loc);
+		expect(say(sign.errors.companyName)).toContain(gen);
+	});
+
+	it("never lets the nominative stand in for a declined slot", () => {
+		const values = {
+			...SITE_CONFIG,
+			signerOrgNoun: "firma",
+			signerOrgNounGen: "firmy",
+			signerOrgNounLoc: "firmie",
+		};
+		const say = (text: string) => interpolate(text, values);
+
+		// "nazwa firma" and "funkcja w firma" are what a single token produces.
+		expect(say(pl.sign.fields.companyName)).not.toContain("firma");
+		expect(say(pl.sign.fields.signerRole)).not.toContain("firma");
 	});
 });

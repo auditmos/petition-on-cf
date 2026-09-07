@@ -18,7 +18,7 @@ function tokensIn(text: string): string[] {
 }
 
 describe("legal fixtures", () => {
-	it("holds the texts the legal layer needs", () => {
+	it("holds the texts the legal layer renders", () => {
 		expect(FIXTURES).toEqual([
 			"consent-public-list-organization.md",
 			"consent-public-list-person.md",
@@ -26,6 +26,7 @@ describe("legal fixtures", () => {
 			"consent-updates.md",
 			"inline-klauzula-informacyjna.md",
 			"klauzula-rodo-podpisanie-petycji.md",
+			"polityka-prywatnosci.md",
 		]);
 	});
 });

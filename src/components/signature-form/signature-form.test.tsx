@@ -1,67 +1,30 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { getContent, LANGUAGES } from "@/content";
-import { SignatureForm } from "./signature-form";
+import {
+	approved,
+	named,
+	renderedWith,
+	renderSignatureForm,
+	sentBody,
+	stubFetch,
+	stubTurnstile,
+} from "./test-support";
 
 /**
  * The form is tested the way a signer uses it: fill the labelled fields, press
- * the button, read what comes back. The only thing standing in for reality is
- * `fetch`, which is a system boundary — the endpoint behind it has its own
- * tests in `src/hono/api/signatures.worker.test.ts`.
+ * the button, read what comes back. The only things standing in for reality are
+ * `fetch` and Cloudflare's widget script, both system boundaries — the endpoint
+ * behind the first has its own tests in
+ * `src/hono/api/signatures.worker.test.ts`.
  *
  * Every case runs in both languages, and the labels a case types into come from
  * the content file rather than from a string written here. That is what makes
  * this a test of the form rather than a second copy of the Polish translation:
  * a label that stopped coming from the content module is not found at all.
- */
-type Reply = { status: number; body: unknown };
-
-function stubFetch(...replies: Reply[]) {
-	const queue = [...replies];
-	const stub = vi.fn(async () => {
-		const reply = queue.shift() ?? { status: 201, body: { data: { status: "created" } } };
-		return new Response(JSON.stringify(reply.body), {
-			status: reply.status,
-			headers: { "content-type": "application/json" },
-		});
-	});
-	vi.stubGlobal("fetch", stub);
-	return stub;
-}
-
-function sentBody(stub: ReturnType<typeof stubFetch>): unknown {
-	const [, init] = stub.mock.calls[0] as unknown as [string, RequestInit];
-	return JSON.parse(String(init.body));
-}
-
-/**
- * Stands in for Cloudflare's widget script, which is a system boundary: it is
- * remote, it draws its own UI, and nothing about it is this form's code.
  *
- * `render` is where the real script hands back a token, so the stub calls the
- * callback the same way — synchronously for a key that passes, not at all for
- * a widget still thinking or already broken.
+ * Consents, signer type and the information clause live in
+ * `signature-form-legal.test.tsx`.
  */
-function stubTurnstile(token: string | null = "a-token-the-widget-produced") {
-	const api = {
-		render: vi.fn(
-			(_element: HTMLElement, options: { callback: (token: string) => void; language: string }) => {
-				if (token !== null) options.callback(token);
-				return "widget-id";
-			},
-		),
-		remove: vi.fn(),
-	};
-	vi.stubGlobal("turnstile", api);
-	return api;
-}
-
-/** The options Cloudflare's script was asked to render the widget with. */
-function renderedWith(api: ReturnType<typeof stubTurnstile>): { language: string } {
-	const [, options] = api.render.mock.calls[0] as unknown as [HTMLElement, { language: string }];
-	return options;
-}
-
 beforeEach(() => {
 	stubTurnstile();
 });
@@ -69,22 +32,10 @@ beforeEach(() => {
 afterEach(() => {
 	vi.unstubAllGlobals();
 });
-
 describe.each(LANGUAGES)("SignatureForm in %s", (language) => {
 	const copy = getContent(language).sign;
 
-	/**
-	 * A fresh client per test, with retries off so a failure is observed once
-	 * rather than after a backoff the test would have to wait out.
-	 */
-	function renderForm(): void {
-		const queryClient = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
-		render(
-			<QueryClientProvider client={queryClient}>
-				<SignatureForm copy={copy} language={language} />
-			</QueryClientProvider>,
-		);
-	}
+	const renderForm = () => renderSignatureForm(language);
 
 	function type(label: string, value: string): void {
 		fireEvent.change(screen.getByLabelText(label), { target: { value } });
@@ -97,7 +48,12 @@ describe.each(LANGUAGES)("SignatureForm in %s", (language) => {
 		type(copy.fields.email, overrides.email ?? "anna@example.com");
 		type(copy.fields.city, "Warszawa");
 		if (overrides.postalCode !== undefined) type(copy.fields.postalCode, overrides.postalCode);
-		fireEvent.click(screen.getByLabelText(copy.consentRodo));
+		fireEvent.click(mandatoryConsent());
+	}
+
+	/** The one box that has to be ticked, found by the wording it carries. */
+	function mandatoryConsent(): HTMLElement {
+		return screen.getByRole("checkbox", { name: named(approved("consentRodoAcknowledgment")) });
 	}
 
 	function submit(): void {
@@ -119,6 +75,11 @@ describe.each(LANGUAGES)("SignatureForm in %s", (language) => {
 			city: "Warszawa",
 			postalCode: "00-950",
 			consentRodo: true,
+			consentPublicList: false,
+			consentUpdates: false,
+			signerType: "person",
+			companyName: null,
+			signerRole: null,
 			turnstileToken: "a-token-the-widget-produced",
 		});
 
@@ -171,7 +132,7 @@ describe.each(LANGUAGES)("SignatureForm in %s", (language) => {
 		renderForm();
 
 		fillIn();
-		fireEvent.click(screen.getByLabelText(copy.consentRodo));
+		fireEvent.click(mandatoryConsent());
 		submit();
 
 		await waitFor(() =>

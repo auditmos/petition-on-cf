@@ -84,3 +84,40 @@ describe("buildHead alternates", () => {
 		);
 	});
 });
+
+/**
+ * The two legal documents are pages in their own right: a reader arrives at
+ * one from a consent checkbox or from a search result, and a tab titled after
+ * the petition would tell them nothing about which document they opened.
+ */
+describe.each(LANGUAGES)("buildHead for a legal document (%s)", (language) => {
+	const document = getContent(language).legal.documents.privacyPolicy;
+
+	it("titles the page after the document, not after the petition", () => {
+		const { meta } = buildHead(language, SITE_CONFIG.privacyPolicyUrl, document);
+
+		expect(meta.find((tag) => "title" in tag)).toEqual({ title: document.title });
+	});
+
+	it("describes the document in the tags a share preview reads", () => {
+		const { meta } = buildHead(language, SITE_CONFIG.privacyPolicyUrl, document);
+		const tags = new Map(
+			meta.flatMap((tag) => ("name" in tag && tag.name ? [[tag.name, tag.content ?? ""]] : [])),
+		);
+
+		expect(tags.get("description")).toBe(document.description);
+		expect(tags.get("og:title")).toBe(document.title);
+	});
+
+	it("still points the alternates at this document in both languages", () => {
+		const { links } = buildHead(language, SITE_CONFIG.privacyPolicyUrl, document);
+		const alternates = links.filter(
+			(link) => link.rel === "alternate" && link.hreflang !== "x-default",
+		);
+
+		expect(alternates.map((link) => link.href)).toEqual([
+			`${SITE_CONFIG.siteUrl}${SITE_CONFIG.privacyPolicyUrl}`,
+			`${SITE_CONFIG.siteUrl}/en${SITE_CONFIG.privacyPolicyUrl}`,
+		]);
+	});
+});

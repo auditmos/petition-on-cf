@@ -15,6 +15,13 @@
       "when": 1788694242994,
       "tag": "0001_cooing_xorn",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1788763316526,
+      "tag": "0002_strange_felicia_hardy",
+      "breakpoints": true
     }
   ]
 }
