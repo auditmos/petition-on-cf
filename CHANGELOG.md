@@ -1,3 +1,10 @@
+# [1.10.0](https://github.com/auditmos/petition-on-cf/compare/v1.9.0...v1.10.0) (2026-09-07)
+
+
+### Features
+
+* **legal:** serve the consents, the clause and two legal routes ([94c657b](https://github.com/auditmos/petition-on-cf/commit/94c657be39c6ca982c008307261e7be68b79e08e)), closes [#3](https://github.com/auditmos/petition-on-cf/issues/3) [#12](https://github.com/auditmos/petition-on-cf/issues/12)
+
 # [1.9.0](https://github.com/auditmos/petition-on-cf/compare/v1.8.1...v1.9.0) (2026-09-06)
 
 
