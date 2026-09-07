@@ -1,3 +1,10 @@
+# [1.11.0](https://github.com/auditmos/petition-on-cf/compare/v1.10.0...v1.11.0) (2026-09-07)
+
+
+### Features
+
+* **supporters:** publish the consenting signers, a page at a time ([d77c7a6](https://github.com/auditmos/petition-on-cf/commit/d77c7a60b1a2f0b29f372ad14962880f6f50ca27)), closes [#10](https://github.com/auditmos/petition-on-cf/issues/10) [#10](https://github.com/auditmos/petition-on-cf/issues/10)
+
 # [1.10.0](https://github.com/auditmos/petition-on-cf/compare/v1.9.0...v1.10.0) (2026-09-07)
 
 
