@@ -1,3 +1,10 @@
+# [1.14.0](https://github.com/auditmos/petition-on-cf/compare/v1.13.0...v1.14.0) (2026-09-07)
+
+
+### Features
+
+* **live:** give the supporters list the push that already moves the counter ([3ca8b54](https://github.com/auditmos/petition-on-cf/commit/3ca8b541791c22f9e92f0bb6791b2a3e0c87d3a0)), closes [#15](https://github.com/auditmos/petition-on-cf/issues/15)
+
 # [1.13.0](https://github.com/auditmos/petition-on-cf/compare/v1.12.1...v1.13.0) (2026-09-07)
 
 
